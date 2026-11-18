@@ -1,11 +1,10 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
+using TuitionAssistant.Api.Tests.Infrastructure;
 
 namespace TuitionAssistant.Api.Tests;
 
-public class HealthEndpointTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public class HealthEndpointTests(TuitionApiFactory factory) : IClassFixture<TuitionApiFactory>
 {
     [Fact]
     public async Task Health_WhenServiceIsRunning_ReturnsOkWithServiceName()
@@ -21,12 +20,13 @@ public class HealthEndpointTests(WebApplicationFactory<Program> factory)
     }
 
     [Fact]
-    public async Task UnknownRoute_ReturnsNotFound()
+    public async Task UnknownRoute_ReturnsNotFoundProblemDetails()
     {
         var client = factory.CreateClient();
 
         var response = await client.GetAsync("/does-not-exist");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 }
