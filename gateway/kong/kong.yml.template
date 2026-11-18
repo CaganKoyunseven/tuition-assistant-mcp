@@ -1,0 +1,148 @@
+# Kong declarative configuration (DB-less mode).
+# Rendered at container start by render-and-start.sh, which replaces these placeholders (written as ${NAME} below):
+#   TUITION_API_UPSTREAM  e.g. http://tuition-api:8080 (compose) or http://tuition-api (Azure)
+#   AGENT_UPSTREAM        e.g. http://agent:8080
+#   JWT_PUBLIC_KEY_PEM    RS256 public key of the Tuition API token issuer ("\n"-escaped)
+#
+# Every route uses strip_path: false, so public paths and upstream paths are identical.
+# Exact paths use anchored regexes (~...$) so that no route can shadow another one.
+# The jwt settings are defined once (&jwt) and reused (*jwt): token only from the Authorization
+# header (never from the query string or cookies), "iss" selects the key, "exp" is verified.
+_format_version: "3.0"
+
+services:
+  - name: tuition-api
+    url: ${TUITION_API_UPSTREAM}
+    connect_timeout: 5000
+    read_timeout: 30000
+    routes:
+      - name: auth-token
+        methods: [POST]
+        paths: ["~/api/v1/auth/token$"]
+        strip_path: false
+        plugins:
+          # Brute-force protection for the login endpoint.
+          - name: rate-limiting
+            config:
+              minute: 10
+              limit_by: ip
+              policy: local
+              fault_tolerant: true
+
+      - name: mobile-query-tuition
+        methods: [GET]
+        paths: ["~/api/v1/mobile/tuition/[^/]+$"]
+        strip_path: false
+        plugins:
+          # Runs before rate-limiting (higher priority). Derives the rate-limit key from the
+          # student number in the path and overwrites any client-supplied value (no spoofing).
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local path = kong.request.get_path()
+                  local student = string.match(path, "^/api/v1/mobile/tuition/([^/]+)$") or "invalid"
+                  kong.service.request.set_header("X-RateLimit-Student", student)
+          # 3 queries per student number per day (keyed by student, not by IP).
+          - name: rate-limiting
+            config:
+              day: 3
+              limit_by: header
+              header_name: X-RateLimit-Student
+              policy: local
+              fault_tolerant: true
+              error_code: 429
+              error_message: "Daily limit reached: max 3 tuition queries per student per day"
+
+      - name: banking-query-tuition
+        methods: [GET]
+        paths: ["~/api/v1/banking/tuition/[^/]+$"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config: &jwt
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              header_names: [authorization]
+              uri_param_names: []
+              cookie_names: []
+
+      - name: banking-pay-tuition
+        methods: [POST]
+        paths: ["~/api/v1/banking/payments$"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config: *jwt
+
+      - name: admin-add-tuition
+        methods: [POST]
+        paths: ["~/api/v1/admin/tuition$"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config: *jwt
+
+      - name: admin-add-tuition-batch
+        methods: [POST]
+        paths: ["~/api/v1/admin/tuition/batch$"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config: *jwt
+          - name: request-size-limiting
+            config:
+              allowed_payload_size: 2
+              size_unit: megabytes
+
+      - name: admin-unpaid-tuition
+        methods: [GET]
+        paths: ["~/api/v1/admin/tuition/unpaid$"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config: *jwt
+
+      # Public API documentation (Swagger UI + OpenAPI JSON).
+      - name: swagger
+        methods: [GET]
+        paths: ["/swagger"]
+        strip_path: false
+
+  - name: agent
+    url: ${AGENT_UPSTREAM}
+    connect_timeout: 5000
+    # LLM tool-calling loops can take a while.
+    read_timeout: 120000
+    routes:
+      - name: agent-api
+        methods: [GET, POST]
+        paths: ["/api/v1/agent"]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config: *jwt
+
+      # Static chat UI served by the agent service.
+      - name: chat-ui
+        methods: [GET]
+        paths: ["~/$", "~/index\\.html$", "~/app\\.js$", "~/styles\\.css$"]
+        strip_path: false
+
+consumers:
+  - username: tuition-auth-issuer
+    jwt_secrets:
+      - key: tuition-auth            # must equal the JWT "iss" claim
+        algorithm: RS256
+        rsa_public_key: "${JWT_PUBLIC_KEY_PEM}"
+
+plugins:
+  - name: correlation-id
+    config:
+      header_name: X-Request-ID
+      generator: uuid
+      echo_downstream: true
+  - name: response-transformer
+    config:
+      add:
+        headers: ["X-Gateway:kong"]
