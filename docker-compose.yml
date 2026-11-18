@@ -1,0 +1,90 @@
+# Local stack: PostgreSQL + Tuition API + MCP server + Agent behind the Kong API Gateway.
+#
+#   ./scripts/gen-keys.sh          # creates secrets/ and prints the JWT values for .env
+#   cp .env.example .env           # then fill in the values
+#   docker compose up --build
+#
+# Published host ports: Kong 8000 (all REST traffic, Swagger, chat UI) and MCP 8081 (Inspector/McpDemo).
+# The Tuition API, the Agent and PostgreSQL are reachable only inside the compose network.
+name: tuition-assistant
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: tuition
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d tuition"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Uncomment to inspect the database from the host (pick a free host port):
+    # ports:
+    #   - "5433:5432"
+
+  tuition-api:
+    build:
+      context: .
+      dockerfile: src/TuitionAssistant.Api/Dockerfile
+    environment:
+      ConnectionStrings__Tuition: Host=postgres;Port=5432;Database=tuition;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Jwt__PrivateKeyPem: ${JWT_PRIVATE_KEY_PEM:?run scripts/gen-keys.sh and set JWT_PRIVATE_KEY_PEM in .env}
+      Jwt__PublicKeyPem: ${JWT_PUBLIC_KEY_PEM:?set JWT_PUBLIC_KEY_PEM in .env}
+      Database__MigrateOnStartup: "true"
+      Database__SeedOnStartup: "true"
+      Seed__AdminPassword: ${SEED_ADMIN_PASSWORD:-Admin#2026}
+      Seed__StudentPassword: ${SEED_STUDENT_PASSWORD:-Student#2026}
+      Seed__BankClientSecret: ${SEED_BANK_CLIENT_SECRET:-BankSecret#2026}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: src/TuitionAssistant.Mcp/Dockerfile
+    environment:
+      Mcp__ApiKey: ${MCP_API_KEY:?set MCP_API_KEY in .env (at least 16 characters)}
+    ports:
+      - "8081:8080"
+
+  agent:
+    build:
+      context: .
+      dockerfile: src/TuitionAssistant.Agent/Dockerfile
+    environment:
+      Llm__Provider: ${LLM_PROVIDER:-OpenAI}
+      Llm__Model: ${LLM_MODEL:-}
+      Llm__ApiKey: ${OPENAI_API_KEY:-}
+      Gateway__BaseUrl: http://kong:8000
+      Mcp__Url: http://mcp-server:8080/mcp
+      Mcp__ApiKey: ${MCP_API_KEY}
+      Jwt__PublicKeyPem: ${JWT_PUBLIC_KEY_PEM}
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+
+  kong:
+    build:
+      context: .
+      dockerfile: gateway/kong/Dockerfile
+    environment:
+      TUITION_API_UPSTREAM: http://tuition-api:8080
+      AGENT_UPSTREAM: http://agent:8080
+      JWT_PUBLIC_KEY_PEM: ${JWT_PUBLIC_KEY_PEM}
+      # Admin API only inside the container (docker compose exec kong curl localhost:8001/routes).
+      KONG_ADMIN_LISTEN: 127.0.0.1:8001
+    ports:
+      - "8000:8000"
+    depends_on:
+      tuition-api:
+        condition: service_healthy
+      agent:
+        condition: service_healthy
+
+volumes:
+  pgdata:
