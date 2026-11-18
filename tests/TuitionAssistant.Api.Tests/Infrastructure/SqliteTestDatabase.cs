@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Options;
 using TuitionAssistant.Api.Application;
 using TuitionAssistant.Api.Infrastructure;
@@ -23,8 +24,8 @@ public sealed class SqliteTestDatabase : IDisposable
         db.Database.EnsureCreated();
     }
 
-    public TuitionDbContext CreateContext() =>
-        new(new DbContextOptionsBuilder<TuitionDbContext>().UseSqlite(_connection).Options);
+    public TuitionDbContext CreateContext(params IInterceptor[] interceptors) =>
+        new(new DbContextOptionsBuilder<TuitionDbContext>().UseSqlite(_connection).AddInterceptors(interceptors).Options);
 
     /// <summary>Low BCrypt cost keeps tests fast; production uses 11.</summary>
     public static IPasswordHasher FastPasswordHasher { get; } =
