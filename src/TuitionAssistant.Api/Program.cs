@@ -45,6 +45,7 @@ builder.Services.AddApiVersioning(options =>
         options.GroupNameFormat = "'v'VVV";
         options.SubstituteApiVersionInUrl = true;
     });
+builder.Services.AddTuitionSwagger();
 
 var app = builder.Build();
 
@@ -53,6 +54,8 @@ await app.InitializeDatabaseAsync();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
+// Swagger UI at /swagger (also routed through Kong), OpenAPI JSON at /swagger/v1/swagger.json.
+app.UseTuitionSwagger();
 
 app.UseAuthentication();
 app.UseAuthorization();

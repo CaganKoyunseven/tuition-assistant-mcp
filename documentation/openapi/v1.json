@@ -1,0 +1,1524 @@
+{
+    "openapi": "3.0.4",
+    "info": {
+        "title": "Tuition API",
+        "description": "University tuition REST API (SE 4458 Group 1). All public routes are served through the Kong API gateway. Get a token from POST /api/v1/auth/token, then click Authorize and paste it.",
+        "version": "v1"
+    },
+    "paths": {
+        "/api/v1/admin/tuition": {
+            "post": {
+                "tags": [
+                    "AdminTuition"
+                ],
+                "summary": "Adds or updates the assessed tuition for a student and term.",
+                "description": "Idempotent upsert keyed by (studentNo, term): a new record returns 201 `CREATED`; the same amount again\nreturns 200 `UNCHANGED`; a different amount returns 200 `UPDATED`, unless it is below the amount\nalready paid (422 `AMOUNT_BELOW_PAID`). Unknown student numbers are created automatically\n(`studentCreated: true`). Only USD is supported.",
+                "requestBody": {
+                    "description": "Student number, term, amount and currency.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddTuitionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Record created.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AddTuitionResponse"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AddTuitionResponse"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AddTuitionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "Record updated or unchanged.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AddTuitionResponse"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AddTuitionResponse"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AddTuitionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid field (`INVALID_TERM`, `UNSUPPORTED_CURRENCY`, \u2026).",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid token.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not an admin.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "New amount is below the amount already paid.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/tuition/batch": {
+            "post": {
+                "tags": [
+                    "AdminTuition"
+                ],
+                "summary": "Adds or updates tuition for many students from a CSV file.",
+                "description": "Upload a CSV (field name `file`, max 1 MB, max 5,000 rows) with the header\n`studentNo,term,amount,currency`. Each row is processed independently with the same rules as\nAdd Tuition; the response reports success/failure counts and per-line errors.",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "file": {
+                                        "type": "string",
+                                        "description": "CSV file.",
+                                        "format": "binary"
+                                    }
+                                }
+                            },
+                            "encoding": {
+                                "file": {
+                                    "style": "form"
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Batch processed (some rows may have failed; see `errors`).",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BatchImportResponse"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BatchImportResponse"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BatchImportResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing file, wrong header or no data rows (`INVALID_CSV`).",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid token.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not an admin.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "File larger than 1 MB (`PAYLOAD_TOO_LARGE`).",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/admin/tuition/unpaid": {
+            "get": {
+                "tags": [
+                    "AdminTuition"
+                ],
+                "summary": "Lists students with unpaid tuition for a term (paged).",
+                "description": "Returns records with a balance greater than zero, ordered by balance (highest first), then student number.\nA page beyond the last page returns an empty `items` list.",
+                "parameters": [
+                    {
+                        "name": "term",
+                        "in": "query",
+                        "description": "Required term, e.g. `2026-FALL`.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number (\u2265 1, default 1).",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    {
+                        "name": "pageSize",
+                        "in": "query",
+                        "description": "Page size (1\u2013100, default 20).",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of unpaid records.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnpaidTuitionResponse"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnpaidTuitionResponse"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UnpaidTuitionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing/invalid term or invalid paging values.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid token.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Not an admin.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/auth/token": {
+            "post": {
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Issues an access token (OAuth 2.0 password and client-credentials grants, JSON body).",
+                "description": "Students log in with their student number and password, admins with their username and password\n(`grantType = \"password\"`). The banking app is a machine client and uses\n`grantType = \"client_credentials\"`. The token is valid for 60 minutes.\nAt the gateway this endpoint is rate-limited to 10 requests per minute per IP.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TokenRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Token issued.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TokenResponse"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TokenResponse"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TokenResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Missing fields or unknown grant type (`VALIDATION_ERROR`).",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials (`INVALID_CREDENTIALS`).",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/banking/payments": {
+            "post": {
+                "tags": [
+                    "BankingPayments"
+                ],
+                "summary": "Records a partial or full tuition payment.",
+                "description": "Payments are simulated (no card processing) and post immediately. Rules:\nduplicate `transactionId` \u2192 409 `DUPLICATE_TRANSACTION` (with the original payment);\namount above the outstanding balance \u2192 422 `AMOUNT_EXCEEDS_BALANCE`; fully paid term \u2192 422 `ALREADY_PAID`.\nRole `bank` may pay for any student; role `student` only for itself.\nThe AI agent sends `X-Client-Channel: ai-agent` so the payment is recorded with channel `AI_AGENT`.",
+                "parameters": [
+                    {
+                        "name": "X-Client-Channel",
+                        "in": "header",
+                        "description": "Optional `X-Client-Channel` header (`ai-agent`).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "Student number, term, amount and a unique transaction ID.",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PayTuitionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Payment recorded.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentResponse"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentResponse"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid field (`INVALID_AMOUNT`, `INVALID_TERM`, \u2026).",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid token.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Role not allowed, or a student paying for another student.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No tuition record for the student and term.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Duplicate transaction ID or concurrent update.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Amount exceeds the balance, or the term is already paid.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/banking/tuition/{studentNo}": {
+            "get": {
+                "tags": [
+                    "BankingTuition"
+                ],
+                "summary": "Returns the tuition total and balance for a student number (banking app).",
+                "description": "Requires a bearer token. Role `bank` may query any student; role `student` may query only\nthe student number in its own token (otherwise 403 `FORBIDDEN_NOT_OWNER`). The AI agent uses this\nendpoint with the signed-in student's token. Omit `term` for the overall balance.",
+                "parameters": [
+                    {
+                        "name": "studentNo",
+                        "in": "path",
+                        "description": "8-digit student number.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "term",
+                        "in": "query",
+                        "description": "Optional term (`YYYY-FALL|SPRING|SUMMER`).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tuition totals.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TuitionQueryResponse"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TuitionQueryResponse"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TuitionQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid student number or term.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid token.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Role not allowed, or a student querying another student.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown student, or no record for the term.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "Bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/mobile/tuition/{studentNo}": {
+            "get": {
+                "tags": [
+                    "MobileTuition"
+                ],
+                "summary": "Returns the tuition total and balance for a student number (mobile app).",
+                "description": "No authentication, as required by the specification. Limited to **3 calls per student number per UTC day**\n(enforced at the gateway, keyed by the student number in the path, and again by a database counter here).\nOmit `term` for the overall balance across all terms; pass `term` (e.g. `2026-FALL`) for one term.\nResponse headers `X-Daily-Limit` and `X-Daily-Remaining` show the backend counter.",
+                "parameters": [
+                    {
+                        "name": "studentNo",
+                        "in": "path",
+                        "description": "8-digit student number.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "term",
+                        "in": "query",
+                        "description": "Optional term (`YYYY-FALL|SPRING|SUMMER`).",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Tuition totals.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TuitionQueryResponse"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TuitionQueryResponse"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TuitionQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid student number or term.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Unknown student, or no record for the term.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "Daily limit reached (`RATE_LIMIT_EXCEEDED`, see `Retry-After`).",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            },
+                            "text/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemDetails"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "AddTuitionRequest": {
+                "type": "object",
+                "properties": {
+                    "studentNo": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "20230005"
+                    },
+                    "term": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "2027-SPRING"
+                    },
+                    "amount": {
+                        "type": "number",
+                        "description": "Assessed tuition total in USD (> 0, at most two decimals).",
+                        "format": "double",
+                        "nullable": true,
+                        "example": 6000.0
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "Only `USD` is supported.",
+                        "nullable": true,
+                        "example": "USD"
+                    }
+                },
+                "additionalProperties": false,
+                "description": "Add Tuition request (create or update the assessed tuition for a student and term)."
+            },
+            "AddTuitionResponse": {
+                "required": [
+                    "status",
+                    "studentNo",
+                    "term"
+                ],
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "description": "`CREATED` (201), `UPDATED` or `UNCHANGED` (200).",
+                        "nullable": true,
+                        "example": "CREATED"
+                    },
+                    "studentNo": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "20230005"
+                    },
+                    "term": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "2027-SPRING"
+                    },
+                    "tuitionTotal": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 6000.0
+                    },
+                    "paidAmount": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 0.0
+                    },
+                    "balance": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 6000.0
+                    },
+                    "currency": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "USD"
+                    },
+                    "studentCreated": {
+                        "type": "boolean",
+                        "description": "True when the student number was unknown and a student record was created."
+                    }
+                },
+                "additionalProperties": false,
+                "description": "Add Tuition result."
+            },
+            "BatchImportResponse": {
+                "required": [
+                    "errors"
+                ],
+                "type": "object",
+                "properties": {
+                    "batchId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "totalRows": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 5
+                    },
+                    "succeeded": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 3
+                    },
+                    "failed": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 2
+                    },
+                    "created": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 2
+                    },
+                    "updated": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 1
+                    },
+                    "unchanged": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 0
+                    },
+                    "studentsCreated": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 1
+                    },
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BatchRowError"
+                        },
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false,
+                "description": "Batch import summary. Rows are processed independently (partial success is possible)."
+            },
+            "BatchRowError": {
+                "required": [
+                    "code",
+                    "message"
+                ],
+                "type": "object",
+                "properties": {
+                    "line": {
+                        "type": "integer",
+                        "description": "Line number in the file (the header is line 1).",
+                        "format": "int32",
+                        "example": 3
+                    },
+                    "studentNo": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "2023X001"
+                    },
+                    "term": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "2026-FALL"
+                    },
+                    "code": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "INVALID_STUDENT_NO"
+                    },
+                    "message": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false,
+                "description": "One failed row of a batch import."
+            },
+            "PayTuitionRequest": {
+                "type": "object",
+                "properties": {
+                    "studentNo": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "20230001"
+                    },
+                    "term": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "2026-FALL"
+                    },
+                    "amount": {
+                        "type": "number",
+                        "description": "Amount in USD; > 0, at most two decimals, not more than the outstanding balance.",
+                        "format": "double",
+                        "nullable": true,
+                        "example": 1000.0
+                    },
+                    "transactionId": {
+                        "type": "string",
+                        "description": "Caller-generated unique ID (idempotency key). Re-using it returns 409.",
+                        "nullable": true,
+                        "example": "BANK-2026-000123"
+                    }
+                },
+                "additionalProperties": false,
+                "description": "Pay Tuition request. Payments are simulated: no card data is accepted or stored."
+            },
+            "PaymentResponse": {
+                "required": [
+                    "channel",
+                    "recordStatus",
+                    "studentNo",
+                    "term",
+                    "transactionId"
+                ],
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "SUCCESS"
+                    },
+                    "paymentId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "transactionId": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "BANK-2026-000123"
+                    },
+                    "studentNo": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "20230001"
+                    },
+                    "term": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "2026-FALL"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "USD"
+                    },
+                    "paidAmount": {
+                        "type": "number",
+                        "description": "Amount of this payment.",
+                        "format": "double",
+                        "example": 1000.0
+                    },
+                    "totalPaid": {
+                        "type": "number",
+                        "description": "Total paid for the term after this payment.",
+                        "format": "double",
+                        "example": 4000.0
+                    },
+                    "remainingBalance": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 2000.0
+                    },
+                    "recordStatus": {
+                        "type": "string",
+                        "description": "Record status after the payment.",
+                        "nullable": true,
+                        "example": "PARTIALLY_PAID"
+                    },
+                    "channel": {
+                        "type": "string",
+                        "description": "`BANK_APP`, `AI_AGENT` or `STUDENT`.",
+                        "nullable": true,
+                        "example": "BANK_APP"
+                    },
+                    "recordedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "additionalProperties": false,
+                "description": "Result of a successful payment."
+            },
+            "ProblemDetails": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "integer",
+                        "format": "int32",
+                        "nullable": true
+                    },
+                    "detail": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "instance": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": {}
+            },
+            "TermTuitionDto": {
+                "required": [
+                    "status",
+                    "term"
+                ],
+                "type": "object",
+                "properties": {
+                    "term": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "2026-FALL"
+                    },
+                    "tuitionTotal": {
+                        "type": "number",
+                        "description": "Assessed tuition for the term.",
+                        "format": "double",
+                        "example": 6000.0
+                    },
+                    "paidAmount": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 3000.0
+                    },
+                    "balance": {
+                        "type": "number",
+                        "description": "Outstanding balance = tuition total \u2212 paid amount.",
+                        "format": "double",
+                        "example": 3000.0
+                    },
+                    "status": {
+                        "type": "string",
+                        "description": "`UNPAID`, `PARTIALLY_PAID` or `PAID`.",
+                        "nullable": true,
+                        "example": "PARTIALLY_PAID"
+                    }
+                },
+                "additionalProperties": false,
+                "description": "Tuition totals for one term."
+            },
+            "TokenRequest": {
+                "type": "object",
+                "properties": {
+                    "grantType": {
+                        "type": "string",
+                        "description": "`password` or `client_credentials`.",
+                        "nullable": true,
+                        "example": "password"
+                    },
+                    "username": {
+                        "type": "string",
+                        "description": "Student number (students) or admin username. Required for the password grant.",
+                        "nullable": true,
+                        "example": "20230001"
+                    },
+                    "password": {
+                        "type": "string",
+                        "description": "Required for the password grant.",
+                        "nullable": true,
+                        "example": "Student#2026"
+                    },
+                    "clientId": {
+                        "type": "string",
+                        "description": "Banking app client id. Required for the client_credentials grant.",
+                        "nullable": true
+                    },
+                    "clientSecret": {
+                        "type": "string",
+                        "description": "Banking app client secret. Required for the client_credentials grant.",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false,
+                "description": "Token request (OAuth 2.0-style, JSON body).\nStudents and admins use `grantType = \"password\"` with `username` and `password`;\nthe banking app uses `grantType = \"client_credentials\"` with `clientId` and `clientSecret`."
+            },
+            "TokenResponse": {
+                "required": [
+                    "accessToken",
+                    "role"
+                ],
+                "type": "object",
+                "properties": {
+                    "accessToken": {
+                        "type": "string",
+                        "description": "RS256-signed JWT. Send it as `Authorization: Bearer <token>`.",
+                        "nullable": true
+                    },
+                    "tokenType": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "Bearer"
+                    },
+                    "expiresIn": {
+                        "type": "integer",
+                        "description": "Lifetime in seconds.",
+                        "format": "int32",
+                        "example": 3600
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "`student`, `bank` or `admin`.",
+                        "nullable": true,
+                        "example": "student"
+                    },
+                    "studentNo": {
+                        "type": "string",
+                        "description": "Set for students only.",
+                        "nullable": true,
+                        "example": "20230001"
+                    }
+                },
+                "additionalProperties": false,
+                "description": "Issued access token."
+            },
+            "TuitionQueryResponse": {
+                "required": [
+                    "scope",
+                    "status",
+                    "studentNo",
+                    "terms"
+                ],
+                "type": "object",
+                "properties": {
+                    "studentNo": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "20230001"
+                    },
+                    "scope": {
+                        "type": "string",
+                        "description": "`TERM` or `OVERALL`.",
+                        "nullable": true,
+                        "example": "TERM"
+                    },
+                    "term": {
+                        "type": "string",
+                        "description": "The requested term, or null for the overall scope.",
+                        "nullable": true,
+                        "example": "2026-FALL"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "USD"
+                    },
+                    "tuitionTotal": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 6000.0
+                    },
+                    "paidAmount": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 3000.0
+                    },
+                    "balance": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 3000.0
+                    },
+                    "status": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "PARTIALLY_PAID"
+                    },
+                    "terms": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TermTuitionDto"
+                        },
+                        "description": "Per-term breakdown in chronological order (SPRING < SUMMER < FALL within a year).",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false,
+                "description": "Query Tuition result. With a `term` parameter the scope is `TERM` and the totals are for that term;\nwithout it the scope is `OVERALL` and the totals are summed over all terms (`terms` lists each term)."
+            },
+            "UnpaidTuitionItem": {
+                "required": [
+                    "status",
+                    "studentNo"
+                ],
+                "type": "object",
+                "properties": {
+                    "studentNo": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "20230004"
+                    },
+                    "fullName": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "Can Yilmaz"
+                    },
+                    "tuitionTotal": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 4500.0
+                    },
+                    "paidAmount": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 0.0
+                    },
+                    "balance": {
+                        "type": "number",
+                        "format": "double",
+                        "example": 4500.0
+                    },
+                    "status": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "UNPAID"
+                    }
+                },
+                "additionalProperties": false,
+                "description": "One student with an outstanding balance."
+            },
+            "UnpaidTuitionResponse": {
+                "required": [
+                    "items",
+                    "term"
+                ],
+                "type": "object",
+                "properties": {
+                    "term": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "2026-FALL"
+                    },
+                    "page": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 1
+                    },
+                    "pageSize": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 20
+                    },
+                    "totalCount": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 28
+                    },
+                    "totalPages": {
+                        "type": "integer",
+                        "format": "int32",
+                        "example": 2
+                    },
+                    "totalOutstanding": {
+                        "type": "number",
+                        "description": "Sum of all outstanding balances for the term (all pages).",
+                        "format": "double"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "USD"
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UnpaidTuitionItem"
+                        },
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false,
+                "description": "Paged list of students with unpaid tuition for a term, ordered by balance (highest first)."
+            }
+        },
+        "securitySchemes": {
+            "Bearer": {
+                "type": "http",
+                "description": "RS256 JWT from POST /api/v1/auth/token (paste the token only, without 'Bearer ').",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "AdminTuition"
+        },
+        {
+            "name": "Auth"
+        },
+        {
+            "name": "BankingPayments"
+        },
+        {
+            "name": "BankingTuition"
+        },
+        {
+            "name": "MobileTuition"
+        }
+    ]
+}
