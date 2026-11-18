@@ -34,7 +34,46 @@ _TBD_
 _TBD_
 
 ## 10. Database
-_TBD_
+
+**PostgreSQL 17** is the server database in every running environment (local docker compose and Azure Database for PostgreSQL Flexible Server). Data access uses EF Core with the Npgsql provider.
+
+> SQLite appears **only inside the automated unit tests** as an in-memory test double, so `dotnet test` runs without Docker or cloud resources. It is never used by the running system.
+
+![ER diagram](documentation/er-diagram.png)
+
+Table descriptions, constraints and the Mermaid source: [`documentation/er-diagram.md`](documentation/er-diagram.md).
+
+### Migrations
+
+EF Core migrations live in `src/TuitionAssistant.Api/Infrastructure/Migrations/`. With `Database__MigrateOnStartup=true` the API applies them at startup (retrying while the database is still starting). To apply or inspect them manually:
+
+```bash
+dotnet tool restore
+dotnet ef database update --project src/TuitionAssistant.Api --connection "<postgres connection string>"
+dotnet ef migrations script --project src/TuitionAssistant.Api     # print the SQL
+```
+
+### Test data (seed)
+
+With `Database__SeedOnStartup=true` an idempotent seeder creates the data below (each row is inserted only if it does not exist yet, so restarts never duplicate data).
+
+| Student | Name (fictitious) | Tuition records | Used for |
+|---|---|---|---|
+| `20230001` | Elif Demir | 2026-FALL: total 6,000.00, paid 3,000.00 (`SEED-TXN-0001`, `SEED-TXN-0002`) → **balance 3,000.00** | Main demo student |
+| `20230002` | Mert Kaya | 2026-FALL: 4,500.00 fully paid (`SEED-TXN-0003`); 2027-SPRING: 4,500.00 unpaid | Term vs. overall balance; ownership tests |
+| `20230003` | Zeynep Aydin | 2026-FALL: total 6,000.00, paid 5,750.00 (`SEED-TXN-0004`) → **balance 250.00** | Below the $300 installment threshold (Policy §3.1) |
+| `20230004` | Can Yilmaz | 2026-FALL: 4,500.00 unpaid | No scholarship may be inferred (Policy §5.2) |
+| `20239001`–`20239025` | Paging Student 01–25 | 2026-FALL: 1,000.00 + i × 137.00, unpaid | Unpaid report paging |
+
+Demo logins (override with `SEED__ADMINPASSWORD`, `SEED__STUDENTPASSWORD`, `SEED__BANKCLIENTSECRET`):
+
+| Username | Role | Password / client secret |
+|---|---|---|
+| `admin` | admin | `Admin#2026` |
+| `bank-app` | bank (client credentials) | `BankSecret#2026` |
+| `20230001` … `20230004` | student | `Student#2026` |
+
+These credentials are for the demo only. Passwords are stored as BCrypt hashes.
 
 ## 11. MCP server
 _TBD_
