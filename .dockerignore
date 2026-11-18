@@ -1,0 +1,7 @@
+# Allowlist: the build context contains only what the Dockerfiles need.
+**
+!Directory.Build.props
+!src/**
+!gateway/**
+**/bin/
+**/obj/
