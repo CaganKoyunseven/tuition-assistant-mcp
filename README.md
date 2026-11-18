@@ -220,7 +220,100 @@ Demo logins (override with `SEED__ADMINPASSWORD`, `SEED__STUDENTPASSWORD`, `SEED
 These credentials are for the demo only. Passwords are stored as BCrypt hashes.
 
 ## 11. MCP server
-_TBD_
+
+`src/TuitionAssistant.Mcp` is an ASP.NET Core service built with the official MCP C# SDK (`ModelContextProtocol.AspNetCore` 2.4.0). It exposes **one tool**, `search_tuition_policies`, over **Streamable HTTP** (stateless mode) at `POST /mcp`. Its only data source is the policy document [`src/TuitionAssistant.Mcp/Data/University_Tuition_Policies.md`](src/TuitionAssistant.Mcp/Data/University_Tuition_Policies.md); it never sees student balances or payments.
+
+| Endpoint | Auth | Purpose |
+|---|---|---|
+| `POST /mcp` | header `X-Mcp-Api-Key` (value of `Mcp__ApiKey`, at least 16 characters) | MCP protocol (`initialize`, `tools/list`, `tools/call`) |
+| `GET /health` | none | `{ status, service, documentId, chunks, indexedAtUtc, documentSha256 }` |
+
+A missing or wrong key returns `401 {"error":"unauthorized", ...}`. The key is compared in constant time. The service refuses to start if `Mcp__ApiKey` is missing or shorter than 16 characters.
+
+### Tool contract
+
+Input schema (as returned by `tools/list`):
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": { "type": "string", "minLength": 2, "maxLength": 300,
+               "description": "Natural-language search query in English, e.g. 'installment eligibility rules' (2-300 characters)." },
+    "top_k": { "type": "integer", "minimum": 1, "maximum": 5, "default": 3,
+               "description": "Number of excerpts to return (1-5, default 3)." }
+  },
+  "required": ["query"]
+}
+```
+
+The tool is annotated as read-only, idempotent and non-destructive. Output (JSON text content, an extension of the format suggested in Policy §9):
+
+```json
+{
+  "document": "University_Tuition_Policies.md",
+  "documentId": "UNI-TUITION-2026-01",
+  "query": "installment eligibility",
+  "totalMatches": 1,
+  "matches": [
+    {
+      "section": "3.1",
+      "heading": "Eligibility",
+      "parentHeading": "Installment policy",
+      "text": "Students with an outstanding balance of at least **$300** may request an installment arrangement. ...",
+      "score": 4.27
+    }
+  ]
+}
+```
+
+- No relevant section: `totalMatches: 0`, `matches: []`, `message: "No relevant policy section found."`.
+- Invalid input (empty or too long query, `top_k` outside 1–5): an MCP tool error result (`isError: true`) with a clear message, not a server crash.
+
+### Chunking and indexing
+
+The document is indexed **once at startup**, before the server accepts traffic (log line: `Indexed 26 chunks from UNI-TUITION-2026-01 (sha256 …) in 10 ms`). Queries only read the in-memory index; they never rebuild it (asserted by a unit test).
+
+1. **Chunking** (`MarkdownChunker`): one chunk per `###` subsection (e.g. `3.2 Number and size of installments`). A `##` section without subsections becomes one chunk (sections 1 and 9), and the introductory scope notice becomes chunk `0`. Result: **26 chunks**: 0, 1, 2.1–2.3, 3.1–3.4, 4.1–4.3, 5.1–5.2, 6.1–6.3, 7.1–7.4, 8.1–8.4, 9. Each chunk keeps its section number, heading and parent heading, so every answer can cite its source section.
+2. **Analysis** (`TextAnalyzer`): lower-case, Unicode NFKC, markdown symbols stripped, numbers kept (`300`, `2%` also emits `2`), English stop words removed, **Porter stemming** (own implementation, `PorterStemmer`, unit-tested).
+3. **Ranking** (`Bm25Index`): Okapi **BM25** (`k1 = 1.2`, `b = 0.75`). The heading is indexed twice and the parent heading once in addition to the body, so headings weigh more. Results below `Policy__MinScore` (default 0.5) are dropped; ties are broken by section number.
+4. **Query-time synonyms** (small, documented list): `deadline → due`, `instalment → installment`, `fee → late`, `penalty → fee, late`, `refund → withdrawal`, `scholarship → merit`, `pay → payment`, `split → installment`, `percent/percentage → %`.
+
+Why BM25 instead of embeddings: the document is small and keyword-rich, BM25 is deterministic, needs no external service or API key, costs nothing per query and is fully testable with plain `dotnet test`.
+
+### Running and calling it
+
+```bash
+# Docker (build context: repository root)
+docker build -f src/TuitionAssistant.Mcp/Dockerfile -t tuition-mcp .
+docker run --rm -p 8081:8080 -e Mcp__ApiKey=<at-least-16-characters> tuition-mcp
+
+# or directly with the .NET SDK
+Mcp__ApiKey=<key> dotnet run --project src/TuitionAssistant.Mcp --urls http://localhost:8081
+```
+
+- **Demo client** (`tools/TuitionAssistant.McpDemo`): connects over Streamable HTTP with the API key, calls `tools/list`, then runs the retrieval queries below (or your own queries as extra arguments):
+  ```bash
+  MCP_URL=http://localhost:8081/mcp MCP_API_KEY=<key> dotnet run --project tools/TuitionAssistant.McpDemo
+  dotnet run --project tools/TuitionAssistant.McpDemo -- http://localhost:8081/mcp <key> "scholarship balance"
+  ```
+- **MCP Inspector**: `npx @modelcontextprotocol/inspector`, transport *Streamable HTTP*, URL `http://localhost:8081/mcp`, add the header `X-Mcp-Api-Key: <key>`, then *List Tools* and call `search_tuition_policies`. The CLI mode works too:
+  ```bash
+  npx @modelcontextprotocol/inspector --cli http://localhost:8081/mcp --transport http \
+    --header "X-Mcp-Api-Key: <key>" --method tools/call \
+    --tool-name search_tuition_policies --tool-arg query="installment eligibility"
+  ```
+
+### Retrieval test results
+
+Output of the demo client against the Docker image (top 3 sections per query, BM25 score in brackets). Each top-1 result is also asserted by a unit test.
+
+| # | Query | Top-1 section | Next results |
+|---|---|---|---|
+| 1 | `payment deadline fall term` | **2.1 Fall term** (8.88) | 2.2 Spring term (6.34), 8.1 When is the Fall tuition deadline? (5.63) |
+| 2 | `how many installments can I split my balance into` | **3.2 Number and size of installments** (3.28) | 8.2 Can I pay my balance in three installments? (3.12), 3.4 Partial payments versus installment approval (2.97) |
+| 3 | `refund if I withdraw early` | **6.1 Early withdrawal** (10.40) | 6.2 Later withdrawal (6.33), 6.3 Refund processing (6.13) |
+| 4 (bonus) | `late fee percentage` | **4.1 Late fee rule** (8.61) | 4.2 Example (6.51), 4.3 Exceptions (5.17) |
 
 ## 12. AI Agent
 _TBD_
