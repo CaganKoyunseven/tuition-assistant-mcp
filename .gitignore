@@ -1,0 +1,32 @@
+# private local material
+docs/
+
+# secrets
+.env
+.env.*
+!.env.example
+secrets/
+deploy/azure/config.env
+*.pem
+*.key
+*.pfx
+*.p12
+
+# runtime traces (curated copies live in documentation/evidence/)
+traces/
+
+# .NET build output
+bin/
+obj/
+TestResults/
+coverage/
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+Thumbs.db
