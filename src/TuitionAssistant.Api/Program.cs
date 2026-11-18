@@ -22,6 +22,9 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<TuitionQueryService>();
 builder.Services.AddScoped<MobileQueryLimiter>();
 builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<TuitionAdminService>();
+builder.Services.AddScoped<TuitionImportService>();
+builder.Services.AddScoped<UnpaidReportService>();
 
 builder.Services.AddTuitionAuthentication(builder.Configuration);
 builder.Services.AddApiProblemDetails();
