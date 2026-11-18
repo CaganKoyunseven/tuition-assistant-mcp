@@ -19,13 +19,122 @@ _TBD_
 _TBD_
 
 ## 5. Quick start (local, docker compose)
-_TBD_
+
+Requirements: Docker with the compose plugin, `bash`, `openssl`, `curl`. (The .NET 10 SDK is only needed to run the tests or the MCP demo client.)
+
+```bash
+./scripts/gen-keys.sh            # RSA key pair in secrets/ (git-ignored); prints two lines for .env
+cp .env.example .env             # paste the two JWT lines, set POSTGRES_PASSWORD and MCP_API_KEY
+docker compose up --build        # postgres, tuition-api, mcp-server, agent, kong
+./scripts/smoke-test.sh http://localhost:8000
+```
+
+| URL | What |
+|---|---|
+| `http://localhost:8000/swagger` | Swagger UI of the Tuition API (through Kong) |
+| `http://localhost:8000/api/v1/...` | all REST operations (through Kong) |
+| `http://localhost:8000/` | chat UI (served by the agent, through Kong) |
+| `http://localhost:8081/mcp` | MCP server (header `X-Mcp-Api-Key`), for MCP Inspector / McpDemo |
+
+Only Kong (8000) and the MCP server (8081) publish host ports. The Tuition API, the agent and PostgreSQL are reachable only inside the compose network, so every REST call has to pass the gateway. `docker compose down -v` removes the stack including the database volume (the seed runs again on the next start).
+
+`scripts/smoke-test.sh` sends real requests through Kong and prints a PASS/FAIL table (login, mobile rate limit, 401/403, payment, duplicate payment, ProblemDetails passthrough, admin report, correlation id). Because the rate-limit check uses up the daily quota of its test students, set `MOBILE_STUDENT` / `MOBILE_OTHER_STUDENT` (e.g. `20239010` / `20239011`) to run it again on the same day without `down -v`.
 
 ## 6. Deployed URLs (Azure)
 _TBD_
 
 ## 7. API Gateway
-_TBD_
+
+**Kong Gateway 3.9 (OSS)** runs in DB-less mode: the whole configuration is one declarative file, [`gateway/kong/kong.yml.template`](gateway/kong/kong.yml.template). At container start [`render-and-start.sh`](gateway/kong/render-and-start.sh) fills in the upstream URLs and the JWT public key from environment variables, validates the result with `kong config parse` and starts Kong. The same image therefore runs locally and in Azure.
+
+### Route mapping
+
+All routes keep the path unchanged (`strip_path: false`). Exact paths are anchored regexes, so no route can shadow another one; anything else returns Kong's `404 {"message":"no Route matched with those values"}`.
+
+| Public path (gateway) | Method | Upstream | Auth at gateway | Plugins |
+|---|---|---|---|---|
+| `/api/v1/auth/token` | POST | tuition-api | none | rate-limiting 10/min per IP (brute-force protection) |
+| `/api/v1/mobile/tuition/{studentNo}` | GET | tuition-api | none (as specified) | pre-function + rate-limiting **3/day per student number** |
+| `/api/v1/banking/tuition/{studentNo}` | GET | tuition-api | JWT | jwt |
+| `/api/v1/banking/payments` | POST | tuition-api | JWT | jwt |
+| `/api/v1/admin/tuition` | POST | tuition-api | JWT | jwt |
+| `/api/v1/admin/tuition/batch` | POST | tuition-api | JWT | jwt, request-size-limiting 2 MB |
+| `/api/v1/admin/tuition/unpaid` | GET | tuition-api | JWT | jwt |
+| `/swagger/...` | GET | tuition-api | none | – |
+| `/api/v1/agent/...` | GET, POST | agent | JWT | jwt |
+| `/`, `/index.html`, `/app.js`, `/styles.css` | GET | agent | none | – (static chat UI) |
+
+Global plugins: `correlation-id` (adds `X-Request-ID` to the upstream request and echoes it in the response) and `response-transformer` (adds `X-Gateway: kong`).
+
+### Authentication at the gateway
+
+The `jwt` plugin verifies the RS256 signature with the public key of the token issuer (consumer `tuition-auth-issuer`, key = the token's `iss` claim `tuition-auth`) and checks `exp`. Tokens are accepted **only** from the `Authorization: Bearer` header, never from the query string or cookies. Kong checks *who signed the token*; *what the caller may do* (role, and a student reading only their own record) is enforced again by the Tuition API, so the API stays safe even if it were reached without the gateway.
+
+```console
+$ curl -i http://localhost:8000/api/v1/banking/tuition/20230001
+HTTP/1.1 401 Unauthorized
+{"message":"Unauthorized"}
+
+$ curl -i -H "Authorization: Bearer $STUDENT_TOKEN" http://localhost:8000/api/v1/banking/tuition/20230001
+HTTP/1.1 200 OK
+X-Request-ID: 5d0c6a8e-...
+X-Gateway: kong
+{"studentNo":"20230001", ...}
+```
+
+### Rate limiting keyed by student number
+
+Mobile Query Tuition is unauthenticated by specification, so it is limited to **3 calls per student number per day**, not per IP: a `pre-function` plugin (which runs before `rate-limiting`) takes the student number from the path and writes it into the `X-RateLimit-Student` header, overwriting any client-supplied value, and `rate-limiting` counts by that header.
+
+```yaml
+- name: pre-function
+  config:
+    access:
+      - |
+        local path = kong.request.get_path()
+        local student = string.match(path, "^/api/v1/mobile/tuition/([^/]+)$") or "invalid"
+        kong.service.request.set_header("X-RateLimit-Student", student)
+- name: rate-limiting
+  config:
+    day: 3
+    limit_by: header
+    header_name: X-RateLimit-Student
+    policy: local
+    error_code: 429
+    error_message: "Daily limit reached: max 3 tuition queries per student per day"
+```
+
+The 4th call for the same student returns Kong's 429, while a different student from the same IP still gets 200 (verified by the smoke test):
+
+```console
+$ curl -i http://localhost:8000/api/v1/mobile/tuition/20230004     # 4th call today
+HTTP/1.1 429 Too Many Requests
+RateLimit-Limit: 3
+RateLimit-Remaining: 0
+X-RateLimit-Limit-Day: 3
+X-RateLimit-Remaining-Day: 0
+Retry-After: 22459
+{"message":"Daily limit reached: max 3 tuition queries per student per day", "request_id":"..."}
+```
+
+`policy: local` keeps counters in Kong's memory, which is correct for a single Kong instance (Kong runs with exactly one replica) but resets on restart. The Tuition API therefore keeps a second, persistent daily counter in PostgreSQL (`429 RATE_LIMIT_EXCEEDED`). The window is the calendar day in UTC.
+
+### Errors through the gateway
+
+Errors produced by Kong itself are small JSON bodies (`401 {"message":"Unauthorized"}`, `429` above, `413 {"message":"Request size limit exceeded"}`). Errors produced by the API pass through unchanged as ProblemDetails:
+
+```console
+$ curl -i -X POST -H "Authorization: Bearer $BANK_TOKEN" -H "Content-Type: application/json" \
+    -d '{"studentNo":"20230001","term":"2026-FALL","amount":3500.00,"transactionId":"TXN-1"}' \
+    http://localhost:8000/api/v1/banking/payments
+HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/problem+json
+{"title":"Amount exceeds balance","status":422,"code":"AMOUNT_EXCEEDS_BALANCE","currentBalance":3000.00, ...}
+```
+
+### Versioning
+
+The version is part of the public path (`/api/v1/...`) and of the upstream path; the API also reports `api-supported-versions`. A future `v2` would be added as new routes next to the `v1` routes, so existing clients keep working.
 
 ## 8. Authentication and authorization
 _TBD_
