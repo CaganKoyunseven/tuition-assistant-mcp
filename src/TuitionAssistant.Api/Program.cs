@@ -19,6 +19,8 @@ builder.Services.AddDbContext<TuitionDbContext>(options =>
 builder.Services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
 builder.Services.AddScoped<DbSeeder>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<TuitionQueryService>();
+builder.Services.AddScoped<MobileQueryLimiter>();
 
 builder.Services.AddTuitionAuthentication(builder.Configuration);
 builder.Services.AddApiProblemDetails();
@@ -47,11 +49,14 @@ await app.InitializeDatabaseAsync();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 // Liveness probe used by Docker, Azure Container Apps and the smoke tests.
-app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "tuition-api" })).AllowAnonymous();
+app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "tuition-api" }))
+    .AllowAnonymous()
+    .ExcludeFromDescription();
 
 app.MapControllers();
 

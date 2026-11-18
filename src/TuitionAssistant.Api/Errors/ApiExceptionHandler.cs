@@ -18,6 +18,11 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problemDetailsSer
         {
             case ApiException apiException:
                 problem = apiException.ToProblemDetails();
+                foreach (var (name, value) in apiException.Headers)
+                {
+                    httpContext.Response.Headers[name] = value;
+                }
+
                 break;
             case BadHttpRequestException badRequest:
                 problem = new ProblemDetails
