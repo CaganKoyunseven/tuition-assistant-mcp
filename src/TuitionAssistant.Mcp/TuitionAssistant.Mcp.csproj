@@ -5,4 +5,8 @@
     <None Update="Data/University_Tuition_Policies.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.4.0" />
+  </ItemGroup>
+
 </Project>
