@@ -438,6 +438,17 @@ Payments need the student's click: `prepare_payment` creates a single-use pendin
 
 Endpoints (all need a `student` token): `POST /api/v1/agent/chat`, `GET /api/v1/agent/models`, `POST /api/v1/agent/payments/{pendingId}/confirm`, `POST /api/v1/agent/payments/{pendingId}/cancel`. Every chat answer carries a trace (LLM steps, tool calls with inputs/outputs, tokens, estimated cost); raw traces are also written to `Agent__TraceDirectory` (git-ignored).
 
+### Chat UI
+
+`http://localhost:8000/` (served by the agent through Kong; plain HTML/JS, no build step). Sign in with a demo student, then:
+
+- ask your own question or click an example (MCP only, REST only, REST + MCP, payment, privacy test);
+- every answer has an **Agent tool execution** panel like the assignment's sample screen: `LLM` (tool selection), `REST via Gateway`, `MCP`, `MCP Result` (section references) and the final `LLM` step, plus tokens and estimated cost; **Raw trace (JSON)** shows everything;
+- a payment request shows a card (student, term, amount, balance, remaining, countdown) with **Confirm** and **Cancel**;
+- the model dropdown in the header lists the models from `GET /api/v1/agent/models`.
+
+The token is kept only in a JavaScript variable (a page refresh signs you out) and all text is inserted as plain text, never as HTML.
+
 ### Choosing the model and the API key
 
 Bring your own key and model: both are plain configuration in `.env`, nothing is hardcoded.

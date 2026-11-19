@@ -1,0 +1,94 @@
+{
+  "sessionId": "c9d60466-5706-4029-95e4-e967d849a73b",
+  "answer": "You can set up an installment plan if you have at least $300 outstanding on your balance. Since your current balance is $250, you are not eligible for an installment plan (Policy §3.1, §3.4).",
+  "model": "gpt-4o-mini",
+  "pendingPayment": null,
+  "trace": {
+    "traceId": "c23b71f206fc4de1b7414db24a68b829",
+    "sessionId": "c9d60466-5706-4029-95e4-e967d849a73b",
+    "studentNo": "20230003",
+    "timestampUtc": "2026-11-19T20:28:24.573055+00:00",
+    "model": "gpt-4o-mini",
+    "question": "Can I split my balance into installments?",
+    "steps": [
+      {
+        "index": 1,
+        "kind": "llm",
+        "name": "tool_selection",
+        "input": {
+          "model": "gpt-4o-mini"
+        },
+        "output": {
+          "finishReason": "tool_calls",
+          "toolCalls": [
+            "get_my_tuition"
+          ]
+        },
+        "request": null,
+        "httpStatus": null,
+        "status": null,
+        "usage": {
+          "input": 941,
+          "output": 12
+        },
+        "durationMs": 858
+      },
+      {
+        "index": 2,
+        "kind": "rest",
+        "name": "get_my_tuition",
+        "input": {},
+        "output": {
+          "studentNo": "20230003",
+          "scope": "OVERALL",
+          "term": null,
+          "currency": "USD",
+          "tuitionTotal": 6000.0,
+          "paidAmount": 5750.0,
+          "balance": 250.0,
+          "status": "PARTIALLY_PAID",
+          "terms": [
+            {
+              "term": "2026-FALL",
+              "tuitionTotal": 6000.0,
+              "paidAmount": 5750.0,
+              "balance": 250.0,
+              "status": "PARTIALLY_PAID"
+            }
+          ]
+        },
+        "request": "GET /api/v1/banking/tuition/20230003 (via gateway)",
+        "httpStatus": 200,
+        "status": "OK",
+        "usage": null,
+        "durationMs": 18
+      },
+      {
+        "index": 3,
+        "kind": "llm",
+        "name": "final_answer",
+        "input": {
+          "model": "gpt-4o-mini"
+        },
+        "output": {
+          "finishReason": "stop"
+        },
+        "request": null,
+        "httpStatus": null,
+        "status": null,
+        "usage": {
+          "input": 1057,
+          "output": 48
+        },
+        "durationMs": 1287
+      }
+    ],
+    "finalAnswer": "You can set up an installment plan if you have at least $300 outstanding on your balance. Since your current balance is $250, you are not eligible for an installment plan (Policy §3.1, §3.4).",
+    "outcome": "COMPLETED",
+    "totals": {
+      "inputTokens": 1998,
+      "outputTokens": 60,
+      "estimatedCostUsd": 0.000336
+    }
+  }
+}
