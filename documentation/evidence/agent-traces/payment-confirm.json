@@ -1,0 +1,83 @@
+{
+  "status": "SUCCESS",
+  "answer": "Payment of $50.00 for 2026-FALL was recorded. Remaining balance: $2950.00.",
+  "payment": {
+    "status": "SUCCESS",
+    "paymentId": "6074d9ea-9dc0-41c4-ab60-ac8aec9ccd63",
+    "transactionId": "AGT-d0c462ed69e449189cdfa5865a253928",
+    "studentNo": "20230001",
+    "term": "2026-FALL",
+    "currency": "USD",
+    "paidAmount": 50.0,
+    "totalPaid": 3050.0,
+    "remainingBalance": 2950.0,
+    "recordStatus": "PARTIALLY_PAID",
+    "channel": "AI_AGENT",
+    "recordedAt": "2026-11-19T20:15:41.0696671Z"
+  },
+  "trace": {
+    "traceId": "b99f1f510f6d4998b4c4add221e2f991",
+    "sessionId": "4b6905e9-2953-4513-91b2-675377f45928",
+    "studentNo": "20230001",
+    "timestampUtc": "2026-11-19T20:15:40.9851976+00:00",
+    "model": "n/a",
+    "question": "Confirm payment f848befe-a5f8-4778-be9f-53d956eec6d6",
+    "steps": [
+      {
+        "index": 1,
+        "kind": "confirmation",
+        "name": "user_confirmed_payment",
+        "input": {
+          "pendingId": "f848befe-a5f8-4778-be9f-53d956eec6d6",
+          "term": "2026-FALL",
+          "amount": 50
+        },
+        "output": {
+          "confirmedAtUtc": "2026-11-19T20:15:40.9851976+00:00"
+        },
+        "request": null,
+        "httpStatus": null,
+        "status": "OK",
+        "usage": null,
+        "durationMs": 0
+      },
+      {
+        "index": 2,
+        "kind": "rest",
+        "name": "pay_tuition",
+        "input": {
+          "studentNo": "20230001",
+          "term": "2026-FALL",
+          "amount": 50,
+          "transactionId": "AGT-d0c462ed69e449189cdfa5865a253928"
+        },
+        "output": {
+          "status": "SUCCESS",
+          "paymentId": "6074d9ea-9dc0-41c4-ab60-ac8aec9ccd63",
+          "transactionId": "AGT-d0c462ed69e449189cdfa5865a253928",
+          "studentNo": "20230001",
+          "term": "2026-FALL",
+          "currency": "USD",
+          "paidAmount": 50.0,
+          "totalPaid": 3050.0,
+          "remainingBalance": 2950.0,
+          "recordStatus": "PARTIALLY_PAID",
+          "channel": "AI_AGENT",
+          "recordedAt": "2026-11-19T20:15:41.0696671Z"
+        },
+        "request": "POST /api/v1/banking/payments (via gateway, X-Client-Channel: ai-agent)",
+        "httpStatus": 201,
+        "status": "OK",
+        "usage": null,
+        "durationMs": 0
+      }
+    ],
+    "finalAnswer": "Payment of $50.00 for 2026-FALL was recorded. Remaining balance: $2950.00.",
+    "outcome": "COMPLETED",
+    "totals": {
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "estimatedCostUsd": 0
+    }
+  }
+}
