@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 using TuitionAssistant.Agent.Configuration;
 using TuitionAssistant.Agent.Llm;
@@ -81,7 +82,7 @@ public sealed class AgentOrchestrator(
                         Request = outcome.Request,
                         HttpStatus = outcome.HttpStatus,
                         Status = outcome.Status,
-                        Output = ParseOrText(Truncate(outcome.Json, ToolOutputTraceLimit)),
+                        Output = TraceOutput(outcome),
                         DurationMs = watch.ElapsedMilliseconds,
                     });
                     messages.Add(new LlmMessage("tool", outcome.Json, ToolCallId: call.Id));
@@ -138,6 +139,35 @@ public sealed class AgentOrchestrator(
             Usage = new { input = response.Usage.InputTokens, output = response.Usage.OutputTokens },
             DurationMs = durationMs,
         });
+    }
+
+    /// <summary>
+    /// What the trace records as a tool's result. MCP results are long, so they are summarised
+    /// (section, heading, score, short excerpt) instead of being cut in the middle of the JSON.
+    /// </summary>
+    private static object TraceOutput(ToolOutcome outcome)
+    {
+        if (outcome.Kind == "mcp" && outcome.Status == "OK")
+        {
+            try
+            {
+                var root = JsonNode.Parse(outcome.Json)!;
+                var matches = (root["matches"]?.AsArray() ?? []).Select(m => new
+                {
+                    section = m?["section"]?.GetValue<string>(),
+                    heading = m?["heading"]?.GetValue<string>(),
+                    score = m?["score"]?.GetValue<double>(),
+                    excerpt = Truncate(m?["text"]?.GetValue<string>() ?? "", 240),
+                }).ToList();
+                return new { query = root["query"]?.GetValue<string>(), totalMatches = root["totalMatches"]?.GetValue<int>() ?? matches.Count, message = root["message"]?.GetValue<string>(), matches };
+            }
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
+            {
+                // fall through to the generic form
+            }
+        }
+
+        return ParseOrText(Truncate(outcome.Json, ToolOutputTraceLimit));
     }
 
     private static object ParseOrText(string json)

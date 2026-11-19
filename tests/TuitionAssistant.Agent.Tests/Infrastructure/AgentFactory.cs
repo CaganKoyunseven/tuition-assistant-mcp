@@ -135,7 +135,7 @@ public sealed class StubPolicyClient : IPolicySearchClient
     public Task<McpCallResult> CallToolAsync(string name, JsonElement arguments, CancellationToken cancellationToken)
     {
         Calls.Add(arguments.GetRawText());
-        return Task.FromResult(new McpCallResult("""{"matches":[{"section":"3.1","text":"Installments need at least $300."}]}""", false));
+        return Task.FromResult(new McpCallResult("""{"query":"q","totalMatches":1,"matches":[{"section":"3.1","heading":"Eligibility","text":"Installments need at least $300.","score":2.1}]}""", false));
     }
 }
 

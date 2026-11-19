@@ -78,6 +78,11 @@ public class ChatEndpointTests
         Assert.Equal("tool_selection", steps[0]!["name"]!.GetValue<string>());
         Assert.Equal("final_answer", steps[2]!["name"]!.GetValue<string>());
         Assert.Empty(factory.Gateway.Queries);
+
+        // The MCP result is summarised (section + heading + excerpt), not cut in the middle of the JSON.
+        var match = steps[1]!["output"]!["matches"]![0]!;
+        Assert.Equal("3.1", match["section"]!.GetValue<string>());
+        Assert.Contains("Installments", match["excerpt"]!.GetValue<string>());
     }
 
     [Fact]
