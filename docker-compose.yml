@@ -58,7 +58,9 @@ services:
       dockerfile: src/TuitionAssistant.Agent/Dockerfile
     environment:
       Llm__Provider: ${LLM_PROVIDER:-OpenAI}
-      Llm__Model: ${LLM_MODEL:-}
+      Llm__Model: ${LLM_MODEL:-gpt-4o-mini}
+      Llm__AllowedModels: ${LLM_ALLOWED_MODELS:-}
+      Llm__BaseUrl: ${LLM_BASE_URL:-https://api.openai.com/v1}
       Llm__ApiKey: ${OPENAI_API_KEY:-}
       Gateway__BaseUrl: http://kong:8000
       Mcp__Url: http://mcp-server:8080/mcp
