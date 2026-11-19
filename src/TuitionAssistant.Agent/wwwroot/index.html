@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>University Tuition Assistant</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="card">
+    <header class="top">
+      <h1>University Tuition Assistant</h1>
+      <div class="top-right" id="topRight" hidden>
+        <span id="who" class="who"></span>
+        <label class="model-label">Model
+          <select id="modelSelect" aria-label="Model"></select>
+        </label>
+        <button id="newChat" class="ghost" type="button">New chat</button>
+        <button id="logout" class="ghost" type="button">Logout</button>
+      </div>
+      <span class="dot" title="online"></span>
+    </header>
+
+    <!-- Screen 1: login -->
+    <section id="loginView" class="pad">
+      <h2>Sign in</h2>
+      <form id="loginForm" autocomplete="off">
+        <label>Student number<input id="username" required inputmode="numeric" placeholder="20230001"></label>
+        <label>Password<input id="password" type="password" required></label>
+        <button type="submit" class="primary">Sign in</button>
+        <p id="loginError" class="error" role="alert" hidden></p>
+      </form>
+      <p class="hint">Demo students: <code>20230001</code> (balance $3,000), <code>20230002</code>, <code>20230003</code> (balance $250), <code>20230004</code>.
+        Demo password: see the README (section 10, "Demo logins"). Data is fictitious.</p>
+    </section>
+
+    <!-- Screen 2: chat -->
+    <section id="chatView" hidden>
+      <div id="messages" class="messages" aria-live="polite"></div>
+      <div class="examples" id="examples"></div>
+      <form id="chatForm" class="composer" autocomplete="off">
+        <input id="messageInput" maxlength="2000" placeholder="Ask about deadlines, installments, your balance, or pay part of it…" required>
+        <button id="sendBtn" class="primary" type="submit">Send</button>
+      </form>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -59,6 +59,10 @@ app.Use(async (context, next) =>
     }
 });
 
+// Chat UI (wwwroot) is public; every API call it makes carries the student's token.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
