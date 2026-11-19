@@ -425,7 +425,32 @@ Output of the demo client against the Docker image (top 3 sections per query, BM
 | 4 (bonus) | `late fee percentage` | **4.1 Late fee rule** (8.61) | 4.2 Example (6.51), 4.3 Exceptions (5.17) |
 
 ## 12. AI Agent
-_TBD_
+
+The agent (`src/TuitionAssistant.Agent`) validates the student's JWT, keeps a short chat history per session and runs a tool-calling loop against an LLM. The model can use exactly three tools:
+
+| Tool | Source | Purpose |
+|---|---|---|
+| `search_tuition_policies` | MCP server (discovered with `tools/list`) | policy questions |
+| `get_my_tuition` | Tuition API through Kong, with the student's own token | live balance. There is **no** student-number parameter: the number always comes from the JWT |
+| `prepare_payment` | agent (checks the live balance) | prepares a payment. It **never pays** |
+
+Payments need the student's click: `prepare_payment` creates a single-use pending payment (5 minutes), the UI shows Confirm / Cancel, and only `POST /api/v1/agent/payments/{pendingId}/confirm` calls the Pay API (with `X-Client-Channel: ai-agent` and an idempotent transaction id). Typing "yes" in the chat never pays.
+
+Endpoints (all need a `student` token): `POST /api/v1/agent/chat`, `GET /api/v1/agent/models`, `POST /api/v1/agent/payments/{pendingId}/confirm`, `POST /api/v1/agent/payments/{pendingId}/cancel`. Every chat answer carries a trace (LLM steps, tool calls with inputs/outputs, tokens, estimated cost); raw traces are also written to `Agent__TraceDirectory` (git-ignored).
+
+### Choosing the model and the API key
+
+Bring your own key and model: both are plain configuration in `.env`, nothing is hardcoded.
+
+| `.env` variable | Meaning |
+|---|---|
+| `OPENAI_API_KEY` | key of an OpenAI-compatible Chat Completions API (stays on the server, never sent to the browser) |
+| `LLM_MODEL` | default model, `gpt-4o-mini` out of the box |
+| `LLM_ALLOWED_MODELS` | optional comma-separated extra models a request may choose (`"model": "..."` in the chat body, listed by `GET /api/v1/agent/models`); any other value returns `400 MODEL_NOT_ALLOWED` |
+| `LLM_BASE_URL` | only for another OpenAI-compatible provider |
+| `LLM_PROVIDER` | `OpenAI` (real, graded mode) or `Fake` (offline keyword-based stand-in for demos without a key) |
+
+> `gpt-4o-mini` is cheap, but OpenAI removes it from the API on **2027-01-14**. After that date set `LLM_MODEL` to a current model (for example `gpt-5-mini`) and restart the agent; no code change is needed. Price estimates in traces use `Llm__InputPricePerMillion` / `Llm__OutputPricePerMillion`.
 
 ## 13. Testing
 
