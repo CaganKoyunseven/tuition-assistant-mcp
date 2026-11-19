@@ -1,18 +1,17 @@
 using System.Net;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc.Testing;
+using TuitionAssistant.Agent.Tests.Infrastructure;
 
 namespace TuitionAssistant.Agent.Tests;
 
-public class HealthEndpointTests(WebApplicationFactory<Program> factory)
-    : IClassFixture<WebApplicationFactory<Program>>
+public class HealthEndpointTests
 {
     [Fact]
     public async Task Health_WhenServiceIsRunning_ReturnsOkWithServiceName()
     {
-        var client = factory.CreateClient();
+        using var factory = new AgentFactory();
 
-        var response = await client.GetAsync("/health");
+        var response = await factory.ClientFor(null).GetAsync("/health");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -23,9 +22,9 @@ public class HealthEndpointTests(WebApplicationFactory<Program> factory)
     [Fact]
     public async Task UnknownRoute_ReturnsNotFound()
     {
-        var client = factory.CreateClient();
+        using var factory = new AgentFactory();
 
-        var response = await client.GetAsync("/does-not-exist");
+        var response = await factory.ClientFor(null).GetAsync("/does-not-exist");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
