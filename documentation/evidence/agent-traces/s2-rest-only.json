@@ -1,0 +1,94 @@
+{
+    "sessionId": "bc971704-661b-454f-9a2b-3a251aab7194",
+    "answer": "Your current balance is $3,000.00. This reflects a total tuition of $6,000.00, with $3,000.00 already paid, indicating that your account is partially paid.",
+    "model": "gpt-4o-mini",
+    "pendingPayment": null,
+    "trace": {
+        "traceId": "b4570d26cec341cdb8a6366d4fda7f12",
+        "sessionId": "bc971704-661b-454f-9a2b-3a251aab7194",
+        "studentNo": "20230001",
+        "timestampUtc": "2026-11-20T09:44:55.3607278+00:00",
+        "model": "gpt-4o-mini",
+        "question": "What is my balance?",
+        "steps": [
+            {
+                "index": 1,
+                "kind": "llm",
+                "name": "tool_selection",
+                "input": {
+                    "model": "gpt-4o-mini"
+                },
+                "output": {
+                    "finishReason": "tool_calls",
+                    "toolCalls": [
+                        "get_my_tuition"
+                    ]
+                },
+                "request": null,
+                "httpStatus": null,
+                "status": null,
+                "usage": {
+                    "input": 938,
+                    "output": 12
+                },
+                "durationMs": 2704
+            },
+            {
+                "index": 2,
+                "kind": "rest",
+                "name": "get_my_tuition",
+                "input": {},
+                "output": {
+                    "studentNo": "20230001",
+                    "scope": "OVERALL",
+                    "term": null,
+                    "currency": "USD",
+                    "tuitionTotal": 6000.0,
+                    "paidAmount": 3000.0,
+                    "balance": 3000.0,
+                    "status": "PARTIALLY_PAID",
+                    "terms": [
+                        {
+                            "term": "2026-FALL",
+                            "tuitionTotal": 6000.0,
+                            "paidAmount": 3000.0,
+                            "balance": 3000.0,
+                            "status": "PARTIALLY_PAID"
+                        }
+                    ]
+                },
+                "request": "GET /api/v1/banking/tuition/20230001 (via gateway)",
+                "httpStatus": 200,
+                "status": "OK",
+                "usage": null,
+                "durationMs": 9
+            },
+            {
+                "index": 3,
+                "kind": "llm",
+                "name": "final_answer",
+                "input": {
+                    "model": "gpt-4o-mini"
+                },
+                "output": {
+                    "finishReason": "stop"
+                },
+                "request": null,
+                "httpStatus": null,
+                "status": null,
+                "usage": {
+                    "input": 1056,
+                    "output": 43
+                },
+                "durationMs": 1146
+            }
+        ],
+        "finalAnswer": "Your current balance is $3,000.00. This reflects a total tuition of $6,000.00, with $3,000.00 already paid, indicating that your account is partially paid.",
+        "outcome": "COMPLETED",
+        "totals": {
+            "inputTokens": 1994,
+            "outputTokens": 55,
+            "estimatedCostUsd": 0.000332
+        }
+    }
+}

@@ -1,0 +1,29 @@
+Smoke test against http://localhost:8000 (2026-11-20 09:42:34 UTC)
+
+RES  | CHECK                                                      | EXPECTED | ACTUAL
+-----+------------------------------------------------------------+----------+----------------
+PASS | Login student 20230001                                     | 200      | 200
+PASS | Login banking app (client credentials)                     | 200      | 200
+PASS | Login admin                                                | 200      | 200
+PASS | Login with wrong password                                  | 401      | 401
+PASS | Mobile query 20230004 #1 (no auth)                         | 200      | 200
+PASS | Mobile query 20230004 #2 (no auth)                         | 200      | 200
+PASS | Mobile query 20230004 #3 (no auth)                         | 200      | 200
+PASS | Mobile query 20230004 #4 -> 429 from Kong rate limit       | 429      | 429
+PASS | Mobile query other student 20239001 (same IP)              | 200      | 200
+PASS | Banking query without token                                | 401      | 401
+PASS | Banking query with invalid token                           | 401      | 401
+PASS | Banking query own record (student token)                   | 200      | 200
+PASS | Banking query other student (student token)                | 403      | 403
+PASS | Banking query by term (bank token)                         | 200      | 200
+PASS | Pay tuition 1.00 for 20239002 (bank token)                 | 201      | 201
+PASS | Pay tuition again with same transactionId                  | 409      | 409
+PASS | Pay more than the balance (ProblemDetails via Kong)        | 422      | 422
+PASS | Pay tuition without token                                  | 401      | 401
+PASS | Unpaid tuition report (admin token)                        | 200      | 200
+PASS | Unpaid tuition report with student token                   | 403      | 403
+PASS | Swagger/OpenAPI document via gateway                       | 200      | 200
+PASS | Correlation header X-Request-ID on responses               | present  | present
+PASS | Unknown route                                              | 404      | 404
+
+Passed: 23  Failed: 0
