@@ -487,4 +487,20 @@ _TBD_
 _TBD_
 
 ## 19. Evidence index
-_TBD_
+
+All evidence lives in [`documentation/evidence/`](documentation/evidence/). Screenshots come from the local Docker Compose stack (chat UI through the Kong gateway); raw JSON traces are next to them.
+
+| Requirement | Evidence |
+|---|---|
+| Agent scenario 1, MCP only (policy question) | [screenshot](documentation/evidence/scenario-1-mcp-only.png), [trace](documentation/evidence/agent-traces/s1-mcp-only.json) |
+| Agent scenario 2, REST only (own balance) | [screenshot](documentation/evidence/scenario-2-rest-only.png), [trace](documentation/evidence/agent-traces/s2-rest-only.json) |
+| Agent scenario 3, combined REST + MCP | [screenshot](documentation/evidence/scenario-3-combined.png), [trace](documentation/evidence/agent-traces/s3-combined.json) |
+| Payment with explicit confirmation (prepare, then Confirm click) | [$100 payment](documentation/evidence/scenario-4-payment-confirmed.png), [$1,000 partial payment](documentation/evidence/scenario-4-payment-partial-1000.png), traces [prepare](documentation/evidence/agent-traces/payment-prepare.json) / [confirm](documentation/evidence/agent-traces/payment-confirm.json) |
+| Privacy: another student's balance is refused | [screenshot](documentation/evidence/scenario-5-privacy.png), [trace](documentation/evidence/agent-traces/s5-privacy.json) |
+| Below-threshold installment question | [trace](documentation/evidence/agent-traces/s6-below-threshold.json) |
+| MCP retrieval, 3 queries (McpDemo console) | [mcp-retrieval.txt](documentation/evidence/mcp-retrieval.txt) |
+| MCP Inspector: connect, tool list, tool call | [1 connected](documentation/evidence/mcp-inspector-1.png), [2 tool](documentation/evidence/mcp-inspector-2.png), [3 result](documentation/evidence/mcp-inspector-3.png) |
+| Gateway protection, rate limit, error cases, local smoke test | [smoke-test-local.txt](documentation/evidence/smoke-test-local.txt) |
+| Swagger UI | [swagger-ui.png](documentation/evidence/swagger-ui.png) |
+| How the tests are run (`dotnet test`, 305 passing) | [tests-passing.png](documentation/evidence/tests-passing.png), [test-run.txt](documentation/evidence/test-run.txt) |
+| CI (GitHub Actions, build and test on every push) | [ci-runs.png](documentation/evidence/ci-runs.png) |
