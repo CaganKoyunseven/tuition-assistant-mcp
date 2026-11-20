@@ -1,0 +1,19 @@
+# Resources in the deployed resource group (az resource list, 2026-11-20T15:29Z)
+# PostgreSQL runs in Denmark East (B1ms was only available there); all apps run in Switzerland North.
+Name                 Type                                       Location
+-------------------  -----------------------------------------  ----------------
+tuition-api          Microsoft.App/containerApps                switzerlandnorth
+mcp-server           Microsoft.App/containerApps                switzerlandnorth
+agent                Microsoft.App/containerApps                switzerlandnorth
+kong                 Microsoft.App/containerApps                switzerlandnorth
+cae-se4458           Microsoft.App/managedEnvironments          switzerlandnorth
+acrse4458ae43a8      Microsoft.ContainerRegistry/registries     switzerlandnorth
+pg-se4458-ae43a8-u4  Microsoft.DBforPostgreSQL/flexibleServers  denmarkeast
+
+# Container Apps (ingress)
+Name         Ingress    Port    MinReplicas    Status
+-----------  ---------  ------  -------------  --------
+tuition-api  False      8080    1              Running
+mcp-server   True       8080    1              Running
+agent        False      8080    1              Running
+kong         True       8000    1              Running
