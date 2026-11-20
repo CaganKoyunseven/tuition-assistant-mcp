@@ -1,0 +1,149 @@
+Connected to tuition-policy-mcp 1.0.0 at http://localhost:8081/mcp
+
+== tools/list ==
+- search_tuition_policies: Searches the official University Tuition Policies document (UNI-TUITION-2026-01) and returns the most relevant policy excerpts with section references. Use for general rules: deadlines, installments, late fees, scholarships, refunds, banking/payment instructions. It does NOT contain any student's balance or payments.
+  inputSchema: {
+    "type": "object",
+    "properties": {
+      "query": {
+        "description": "Natural-language search query in English, e.g. \u0027installment eligibility rules\u0027 (2-300 characters).",
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 300
+      },
+      "top_k": {
+        "description": "Number of excerpts to return (1-5, default 3).",
+        "type": "integer",
+        "default": 3,
+        "minimum": 1,
+        "maximum": 5
+      }
+    },
+    "required": [
+      "query"
+    ]
+  }
+
+== tools/call #1: search_tuition_policies(query: "payment deadline fall term", top_k: 3) ==
+{
+  "document": "University_Tuition_Policies.md",
+  "documentId": "UNI-TUITION-2026-01",
+  "query": "payment deadline fall term",
+  "totalMatches": 3,
+  "matches": [
+    {
+      "section": "2.1",
+      "heading": "Fall term",
+      "parentHeading": "Payment deadlines",
+      "text": "The payment deadline for the Fall 2026 term is **September 30, 2026**. A student should settle the outstanding balance or have an approved installment arrangement by that date.",
+      "score": 8.88
+    },
+    {
+      "section": "2.2",
+      "heading": "Spring term",
+      "parentHeading": "Payment deadlines",
+      "text": "The payment deadline for the Spring 2027 term is **February 15, 2027**. Deadlines apply in the university\u0027s local time zone.",
+      "score": 6.34
+    },
+    {
+      "section": "8.1",
+      "heading": "When is the Fall tuition deadline?",
+      "parentHeading": "Frequently asked questions",
+      "text": "September 30, 2026. See Section 2.1.",
+      "score": 5.63
+    }
+  ]
+}
+
+== tools/call #2: search_tuition_policies(query: "how many installments can I split my balance into", top_k: 3) ==
+{
+  "document": "University_Tuition_Policies.md",
+  "documentId": "UNI-TUITION-2026-01",
+  "query": "how many installments can I split my balance into",
+  "totalMatches": 3,
+  "matches": [
+    {
+      "section": "3.2",
+      "heading": "Number and size of installments",
+      "parentHeading": "Installment policy",
+      "text": "An approved balance may be divided into **up to three installments**. Installments should be equal where possible; any rounding difference is added to the final installment. For example, a $3,000 balance can be divided into three payments of $1,000.",
+      "score": 3.28
+    },
+    {
+      "section": "8.2",
+      "heading": "Can I pay my balance in three installments?",
+      "parentHeading": "Frequently asked questions",
+      "text": "The policy permits up to three installments for eligible balances, subject to approval. Check the live balance through the Tuition Query API and see Sections 3.1\u20133.4.",
+      "score": 3.12
+    },
+    {
+      "section": "3.4",
+      "heading": "Partial payments versus installment approval",
+      "parentHeading": "Installment policy",
+      "text": "The payment API can record a partial payment and retain the remaining balance. **A partial payment is not, by itself, approval of an installment plan.** The AI assistant must not promise approval based solely on the policy document or a balance lookup.",
+      "score": 2.97
+    }
+  ]
+}
+
+== tools/call #3: search_tuition_policies(query: "refund if I withdraw early", top_k: 3) ==
+{
+  "document": "University_Tuition_Policies.md",
+  "documentId": "UNI-TUITION-2026-01",
+  "query": "refund if I withdraw early",
+  "totalMatches": 3,
+  "matches": [
+    {
+      "section": "6.1",
+      "heading": "Early withdrawal",
+      "parentHeading": "Refunds and withdrawals",
+      "text": "A student who formally withdraws within **14 calendar days of the term start** may be eligible for a refund of **80% of tuition payments associated with that term**, subject to administrative review.",
+      "score": 10.4
+    },
+    {
+      "section": "6.2",
+      "heading": "Later withdrawal",
+      "parentHeading": "Refunds and withdrawals",
+      "text": "After the 14-day period, refunds are reviewed individually and are not guaranteed. The AI assistant should direct students to the university finance office for a formal decision.",
+      "score": 6.33
+    },
+    {
+      "section": "6.3",
+      "heading": "Refund processing",
+      "parentHeading": "Refunds and withdrawals",
+      "text": "Approved refunds are generally processed within **15 business days**. This document does not provide refund status for any individual student.",
+      "score": 6.13
+    }
+  ]
+}
+
+== tools/call #4: search_tuition_policies(query: "late fee percentage", top_k: 3) ==
+{
+  "document": "University_Tuition_Policies.md",
+  "documentId": "UNI-TUITION-2026-01",
+  "query": "late fee percentage",
+  "totalMatches": 3,
+  "matches": [
+    {
+      "section": "4.1",
+      "heading": "Late fee rule",
+      "parentHeading": "Late fees",
+      "text": "A **2% one-time late fee** may be assessed on an overdue amount after the applicable due date, unless an approved exception applies. This document describes the rule but does not calculate or post fees automatically.",
+      "score": 8.61
+    },
+    {
+      "section": "4.2",
+      "heading": "Example",
+      "parentHeading": "Late fees",
+      "text": "If $1,000 is overdue and no exception applies, the illustrative late fee is $20. Whether a fee has actually been posted must be checked in the tuition system.",
+      "score": 6.51
+    },
+    {
+      "section": "4.3",
+      "heading": "Exceptions",
+      "parentHeading": "Late fees",
+      "text": "Students with a documented university-approved deferral may be exempt. Approval status is not available from this document.",
+      "score": 5.17
+    }
+  ]
+}
