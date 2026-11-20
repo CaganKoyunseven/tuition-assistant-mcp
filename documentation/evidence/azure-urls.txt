@@ -1,0 +1,5 @@
+Deployed: 2026-11-20T15:12Z  commit e0a2f57  region switzerlandnorth
+Gateway (chat UI):  https://kong.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io/
+Swagger UI:         https://kong.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io/swagger
+MCP endpoint:       https://mcp-server.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io/mcp   (header X-Mcp-Api-Key)
+Resource group:     rg-se4458-tuition
