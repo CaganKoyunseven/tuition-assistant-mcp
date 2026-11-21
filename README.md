@@ -4,19 +4,86 @@
 
 A conversational assistant that answers student questions about tuition deadlines, installments, payment rules, balances and payments. For each question an LLM (OpenAI function calling) decides whether to search the university policy document through an **MCP server**, call the **Tuition REST API** through a **Kong API Gateway**, or both.
 
-> This README is being filled in phase by phase. Sections marked _TBD_ are not written yet.
-
 ## 1. Demo video
-_TBD_
+
+**Video:** _link will be added here_ (screen recording of the deployed Azure system; it has no audio and no subtitles, the steps below describe what is shown).
+
+| Time | What is shown |
+|---|---|
+| 0:00 | Architecture diagram |
+| 0:20 | Azure resource group and the gateway URL |
+| 0:40 | Swagger UI through the gateway: protected endpoint `401`, login, then `200` |
+| 1:20 | Mobile query rate limit: 3 × `200`, then `429`; a different student still gets `200` |
+| 1:50 | Chat UI: scenario 1 (MCP only), 2 (REST only), 3 (REST + MCP) with the tool-execution trace |
+| 3:20 | Payment: pending card, **Confirm**, success, balance updated |
+| 4:00 | Privacy: another student's balance is refused |
+| 4:15 | MCP retrieval (McpDemo / MCP Inspector) |
+| 4:45 | `dotnet test` and the CI badge |
 
 ## 2. Architecture
-_TBD_
+
+```mermaid
+flowchart TB
+  U[Student browser<br/>Chat UI] -->|HTTPS| K
+  subgraph Azure Container Apps environment
+    K[Kong Gateway 3.9<br/>DB-less, public ingress<br/>jwt, rate-limiting, pre-function]
+    A[Agent service<br/>internal ingress<br/>LLM loop, MCP client, gateway client]
+    T[Tuition REST API<br/>internal ingress<br/>/api/v1, Swagger, token endpoint]
+    M[MCP server<br/>public ingress + API key<br/>search_tuition_policies<br/>BM25 index built at startup]
+  end
+  K -->|/api/v1/agent/*, /| A
+  K -->|/api/v1/auth, mobile, banking, admin, /swagger| T
+  A -->|REST via gateway<br/>Bearer = student JWT| K
+  A -->|MCP Streamable HTTP<br/>X-Mcp-Api-Key| M
+  A <-->|function calling| L[(OpenAI API)]
+  T --> D[(PostgreSQL)]
+  M --> P[[University_Tuition_Policies.md<br/>26 chunks + BM25 index]]
+```
+
+Workflow: `student question → LLM selects tools → agent executes MCP and/or REST (REST via the gateway) → tool results go back to the LLM → grounded answer with policy section references`.
+
+- **The LLM never calls a service.** It only returns `tool_calls`; the agent executes them and feeds the results back (at most `Llm__MaxToolIterations` = 5 rounds).
+- **REST path:** Agent → Kong → Tuition API → PostgreSQL. The agent calls Kong by its internal name, so even the agent's REST traffic passes the gateway (JWT check, rate limits, correlation id).
+- **MCP path:** Agent (MCP client) → MCP server → in-memory BM25 index of the policy document. This path does not go through Kong; it is protected by the `X-Mcp-Api-Key` header.
+- **Four request flows**
+  1. *Policy question* ("When is the payment deadline?"): MCP only.
+  2. *Account question* ("What is my balance?"): REST only (`get_my_tuition`).
+  3. *Combined* ("Can I pay my outstanding balance in installments?"): REST (balance) + MCP (installment rules).
+  4. *Payment*: `prepare_payment` (no money moves) → card with Confirm / Cancel → the student's click calls the Pay Tuition API.
+- **Identity propagation:** the UI logs in at `POST /api/v1/auth/token` and keeps the JWT in memory. Kong validates it, the agent validates it again and takes `student_no` from it, and the **same JWT** is forwarded to the REST API. The student number in a REST path always comes from the JWT, never from the LLM or the user's text.
+- In Azure the Tuition API and the agent have **internal-only ingress**, so the public entry points are Kong and the (API-key protected) MCP server.
 
 ## 3. Tech stack
-_TBD_
+
+| Area | Choice |
+|---|---|
+| Runtime | .NET 10, ASP.NET Core controllers |
+| REST API | `Asp.Versioning.Mvc` (URL versioning), Swashbuckle (Swagger / OpenAPI), RFC 7807 ProblemDetails |
+| Database | PostgreSQL 17, EF Core + Npgsql, migrations, idempotent seeder |
+| Auth | RS256 JWT (`JwtBearer`), BCrypt password hashes |
+| CSV import | CsvHelper |
+| MCP server | official MCP C# SDK (`ModelContextProtocol.AspNetCore` 2.4.0), Streamable HTTP, own chunker, Porter stemmer and BM25 |
+| Agent | official OpenAI .NET SDK (Chat Completions with tools), MCP C# client, static chat UI (HTML/JS) |
+| Gateway | Kong Gateway 3.9 OSS, DB-less, declarative `kong.yml` |
+| Tests | xUnit, `WebApplicationFactory`, SQLite in-memory (test double only), NSubstitute |
+| CI | GitHub Actions (build + test) |
+| Cloud | Azure Container Apps, Azure Container Registry, Azure Database for PostgreSQL Flexible Server |
 
 ## 4. Repository structure
-_TBD_
+
+```
+src/TuitionAssistant.Api/        REST API, token endpoint, EF Core, migrations, seeder, Swagger
+src/TuitionAssistant.Mcp/        MCP server, policy document, chunker / analyzer / BM25 index
+src/TuitionAssistant.Agent/      agent service (LLM loop, tools, payment confirmation, traces) + chat UI (wwwroot)
+tools/TuitionAssistant.McpDemo/  console client that calls the MCP server
+tests/                           Api.Tests, Mcp.Tests, Agent.Tests (xUnit)
+gateway/kong/                    Dockerfile, kong.yml.template, render-and-start.sh
+deploy/azure/                    deploy.sh, teardown.sh, config.env.example
+scripts/                         gen-keys.sh, smoke-test.sh, sample-data/ (CSV files)
+documentation/                   ER diagram, OpenAPI export, evidence (screenshots, traces, logs)
+docker-compose.yml               local stack: postgres, tuition-api, mcp-server, agent, kong
+.github/workflows/ci.yml         CI
+```
 
 ## 5. Quick start (local, docker compose)
 
@@ -41,7 +108,15 @@ Only Kong (8000) and the MCP server (8081) publish host ports. The Tuition API, 
 `scripts/smoke-test.sh` sends real requests through Kong and prints a PASS/FAIL table (login, mobile rate limit, 401/403, payment, duplicate payment, ProblemDetails passthrough, admin report, correlation id). Because the rate-limit check uses up the daily quota of its test students, set `MOBILE_STUDENT` / `MOBILE_OTHER_STUDENT` (e.g. `20239010` / `20239011`) to run it again on the same day without `down -v`.
 
 ## 6. Deployed URLs (Azure)
-_TBD_
+
+| What | URL |
+|---|---|
+| Gateway and chat UI | https://kong.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io/ |
+| Swagger UI (through the gateway) | https://kong.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io/swagger |
+| REST API base | `https://kong.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io/api/v1/...` |
+| MCP endpoint (header `X-Mcp-Api-Key`) | https://mcp-server.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io/mcp |
+
+Log in to the chat UI or Swagger with the demo credentials from [Test data](#test-data-seed) (`20230001` / `Student#2026`). The MCP endpoint answers `401` without the API key; the key is a deployment secret and is not published. The deployed agent uses it internally, so MCP can be tested through the chat UI, and directly with MCP Inspector or the demo client on the local stack (see [MCP server](#11-mcp-server)). The Tuition API and the agent are not reachable from the internet; every REST call has to pass Kong. Deployment details: [Cloud deployment](#14-cloud-deployment).
 
 ## 7. API Gateway
 
@@ -137,7 +212,37 @@ Content-Type: application/problem+json
 The version is part of the public path (`/api/v1/...`) and of the upstream path; the API also reports `api-supported-versions`. A future `v2` would be added as new routes next to the `v1` routes, so existing clients keep working.
 
 ## 8. Authentication and authorization
-_TBD_
+
+`POST /api/v1/auth/token` (public, limited to 10 requests/min per IP at the gateway) is an OAuth2-inspired token endpoint with a JSON body. It supports the equivalent of the OAuth 2.0 *password* grant (students, admin) and *client credentials* grant (banking app):
+
+```json
+{ "grantType": "password", "username": "20230001", "password": "Student#2026" }
+{ "grantType": "client_credentials", "clientId": "bank-app", "clientSecret": "BankSecret#2026" }
+```
+
+```json
+{ "accessToken": "<jwt>", "tokenType": "Bearer", "expiresIn": 3600, "role": "student", "studentNo": "20230001" }
+```
+
+A missing field or unknown `grantType` returns `400 VALIDATION_ERROR`; a wrong password or unknown user returns `401 INVALID_CREDENTIALS` (the same message for both, so user names cannot be probed).
+
+**JWT:** RS256 with a 2048-bit RSA key. The private key exists only in the Tuition API; Kong, the agent and the API's own validation use the public key. Claims: `iss=tuition-auth`, `aud=tuition-api`, `sub`, `role` (`student` / `bank` / `admin`), `student_no` (students only), `jti`, `iat`, `nbf`, `exp` (60 minutes). Keys are generated by `scripts/gen-keys.sh` and never committed.
+
+**Two validation layers (defense in depth):**
+
+1. Kong `jwt` plugin on every protected route: signature and `exp`.
+2. JwtBearer in the Tuition API and in the agent: issuer, audience, lifetime (30 s skew) and signing key, then the role and ownership rules below. The services never trust the gateway blindly.
+
+| Route | Anonymous | student | bank | admin |
+|---|---|---|---|---|
+| `POST /api/v1/auth/token` | yes | – | – | – |
+| `GET /api/v1/mobile/tuition/{studentNo}` | yes (3/student/day) | yes | yes | yes |
+| `GET /api/v1/banking/tuition/{studentNo}` | 401 | own record only (else 403) | any student | 403 |
+| `POST /api/v1/banking/payments` | 401 | own record only (else 403) | any student | 403 |
+| `POST /api/v1/admin/tuition`, `/batch`, `GET /admin/tuition/unpaid` | 401 | 403 | 403 | yes |
+| `/api/v1/agent/*` | 401 | yes (own session) | 403 | 403 |
+
+**Why the agent cannot read another student's data:** the tool schemas have no student-number parameter; the agent takes the number from the JWT, forwards the student's own token, and the API compares the token's `student_no` with the requested record (`403 FORBIDDEN_NOT_OWNER`). A prompt such as "show the balance of 20230004" therefore cannot reach that data (scenario 5 in the [evidence](#19-evidence-index)). The batch endpoint is admin-only, because it modifies data, although the assignment's table does not list its authorization (see [Assumptions](#16-assumptions)).
 
 ## 9. REST API
 
@@ -469,22 +574,119 @@ Bring your own key and model: both are plain configuration in `.env`, nothing is
 dotnet test
 ```
 
-Tests run with the .NET 10 SDK only: no Docker, no cloud and no OpenAI key are required.
+Tests run with the .NET 10 SDK only: no Docker, no cloud and no OpenAI key are required (the Agent tests use a fake LLM, a fake MCP client and a fake gateway handler). One project only: `dotnet test --filter "FullyQualifiedName~Api.Tests"`. The console output of a full run is in [`documentation/evidence/test-run.txt`](documentation/evidence/test-run.txt); CI runs the same command on every push.
+
+| Project | Tests | Covers |
+|---|---|---|
+| `TuitionAssistant.Api.Tests` | 152 | every REST operation with success and failure cases: token (valid / wrong password / bad grant), mobile query (term vs overall, invalid number, unknown student, 4th call → 429, counter reset on the next day), banking query (bank, own, other student 403, no token 401, admin 403), pay tuition (partial, full, duplicate 409, exceeds balance 422, invalid amount, already paid, other student 403), add tuition (created / unchanged / updated, below paid, bad currency, bad term, roles), batch CSV (counts, per-line errors, wrong header, header only, non-admin), unpaid report (paging, ordering, bounds, roles), ProblemDetails format, versioned routes, money helpers, concurrent payments |
+| `TuitionAssistant.Mcp.Tests` | 93 | chunker (exact section list), analyzer and Porter stemmer, BM25 (top-1 section of the retrieval queries, irrelevant query → 0 matches), input validation, index built once, tool output shape, MCP client ↔ server over HTTP (`tools/list`, `tools/call`, missing key → 401) |
+| `TuitionAssistant.Agent.Tests` | 60 | MCP-only, REST-only and combined tool flows, student number taken from the JWT only, `prepare_payment` never pays, confirm / cancel / expiry / wrong session, idempotent retry, loop guard, tool errors passed to the LLM, trace redaction, schema conversion, cost calculator |
+
+**Why SQLite appears in the tests:** the API tests use SQLite in-memory as a test double so that `dotnet test` needs no Docker and no cloud. It is never used by the running system: local compose and Azure both use PostgreSQL.
 
 ## 14. Cloud deployment
-_TBD_
+
+The system runs on **Azure Container Apps** with **Azure Database for PostgreSQL Flexible Server** (resource group `rg-se4458-tuition`; list of resources: [`azure-resources.txt`](documentation/evidence/azure-resources.txt)).
+
+| Resource | Details |
+|---|---|
+| Container Registry | Basic; images `tuition-api`, `mcp-server`, `agent`, `kong` |
+| Container Apps environment | `cae-se4458`, Consumption (switzerlandnorth) |
+| `kong` | 0.5 vCPU / 1 GiB, exactly 1 replica, **external** ingress, port 8000 (public gateway) |
+| `tuition-api` | 0.5 vCPU / 1 GiB, 1 replica, **internal** ingress, port 8080 |
+| `agent` | 0.5 vCPU / 1 GiB, 1 replica (in-memory sessions), **internal** ingress |
+| `mcp-server` | 0.5 vCPU / 1 GiB, 1 replica, **external** ingress, protected by an API key |
+| PostgreSQL | Flexible Server 17, Burstable B1ms, SSL required, database `tuition` |
+
+Inside the environment the apps call each other by app name (`http://tuition-api`, `http://mcp-server/mcp`, `http://kong`); the agent's `Gateway__BaseUrl` is the internal Kong address, so agent traffic still passes the gateway.
+
+**Region note:** the subscription's region policy allows only a few regions, and PostgreSQL B1ms was available only in Denmark East, while Container Apps are not offered there. The database therefore runs in **Denmark East** and the four apps in **Switzerland North**. This adds a few milliseconds of latency per query and is acceptable for this workload.
+
+### Deploy
+
+```bash
+az login                                  # an account that owns an Azure subscription
+cp deploy/azure/config.env.example deploy/azure/config.env    # git-ignored; optional, created automatically
+./deploy/azure/deploy.sh                  # idempotent: safe to re-run
+```
+
+The script registers the resource providers, creates the resource group, registry, database, environment and the four apps, then prints the gateway, Swagger and MCP URLs and runs `scripts/smoke-test.sh` against the gateway. Required inputs: the Azure login and an OpenAI API key (asked for with a silent prompt if `OPENAI_API_KEY` is blank). The PostgreSQL password, the MCP API key and a name suffix are generated on the first run.
+
+**Secrets** (database password, JWT private key, MCP API key, OpenAI key) are stored as Container Apps secrets and referenced with `secretref:`; they are never in the repository. `config.env` is git-ignored; only `config.env.example` with placeholders is committed. The smoke test result on Azure: **23 / 23 checks passed** ([`smoke-test-azure.txt`](documentation/evidence/smoke-test-azure.txt)); the chat UI on Azure: [`azure-chat-ui.png`](documentation/evidence/azure-chat-ui.png).
+
+Container images are built locally and pushed to the registry, because ACR build tasks are disabled for this subscription type. The script creates the environment in `ConsumptionOnly` mode, because the CLI's default environment type does not support the internal app-to-app routing this design needs.
+
+### Cost control and teardown
+
+- Set a budget alert (for example 20 USD) in Azure Cost Management.
+- Stop the database when idle: `az postgres flexible-server stop --resource-group rg-se4458-tuition --name <server>` (Azure restarts a stopped server after 7 days).
+- Remove everything after grading: `./deploy/azure/teardown.sh` (deletes the resource group, asks for confirmation).
+- Approximate running cost: the B1ms database and four always-on 0.5 vCPU apps use a few USD per week of the free credit; the LLM cost is negligible (next section).
 
 ## 15. LLM cost and low-cost approach
-_TBD_
+
+Default model `gpt-4o-mini` (configurable, see [Choosing the model](#choosing-the-model-and-the-api-key)); estimates use 0.15 USD / 1M input tokens and 0.60 USD / 1M output tokens (`Llm__InputPricePerMillion`, `Llm__OutputPricePerMillion`). Measured on the demo scenarios (tokens and cost come from the saved traces in [`documentation/evidence/agent-traces/`](documentation/evidence/agent-traces)):
+
+| Scenario | LLM calls | Input tokens | Output tokens | Estimated cost |
+|---|---|---|---|---|
+| 1 MCP only (payment deadline) | 2 | 2,127 | 65 | $0.00036 |
+| 2 REST only (balance) | 2 | 1,994 | 55 | $0.00033 |
+| 3 Combined (installments) | 3 | 3,333 | 98 | $0.00056 |
+| 4 Payment, prepare step | 2 | 2,200 | 124 | $0.00040 |
+| 5 Privacy refusal | 1 | 944 | 38 | $0.00016 |
+
+A question costs a fraction of a cent; the whole demo is far below one cent per scenario. Measures to keep it low: a small model, at most 5 tool rounds per question (`MaxToolIterations`), a 20-message history per session (`HistoryMaxMessages`), a spending limit on the OpenAI project, the offline `Fake` provider for demos without a key, and all unit tests use a fake LLM (no API calls).
 
 ## 16. Assumptions
-_TBD_
+
+- **Identity:** students log in with student number + password (demo); the banking app is a machine client (client credentials, role `bank`) that may act for any student; admins use role `admin`. JWT RS256, 60 minutes.
+- **Agent identity:** the agent always uses the signed-in student's JWT; tool schemas contain no student number; numbers typed in prompts are never used to access data.
+- **Mobile Query Tuition** has no authentication, as specified. It is limited to 3 calls per student number per UTC day at the gateway (keyed by the number in the path, not the IP) and again in the API (database counter). It exposes a balance to anyone who knows a student number; this follows the specification and the agent never uses this endpoint.
+- **Term vs. overall:** `term` is optional; without it the response contains overall totals plus a per-term breakdown.
+- **Currency and amounts:** USD only; at most 2 decimals; the API never rounds (invalid precision → 400).
+- **Installments and late fees** are not stored or calculated by the API. The agent explains the policy rules (equal parts, rounding difference in the last installment) but never confirms an approval or a posted fee. Late fee examples are illustrative.
+- **Pay Tuition:** duplicate `transactionId` → 409; amount greater than the balance → 422; no overpayment; payments are simulated and post immediately (the two-business-day posting delay of Policy §2.3 is only stated by the agent, not simulated); no card data.
+- **Add Tuition:** an upsert keyed by (studentNo, term); same amount → `UNCHANGED`; amount below what is already paid → 422; unknown students are created automatically, because the specification has no student-creation operation.
+- **Batch:** row-by-row processing with partial success; a later row overrides an earlier row for the same (studentNo, term); at most 1 MB and 5,000 rows; admin-only although the assignment's authorization table does not list it.
+- **Errors:** the API returns RFC 7807 ProblemDetails with a `code`; errors generated by Kong (401, 413, 429) use Kong's `{"message": ...}` body.
+- **Database:** PostgreSQL 17 in every running environment; SQLite only inside the unit tests as an in-memory test double.
+- **Rate-limit window:** UTC calendar day. Kong's counters are in memory (single replica); the database counter persists.
+- **Deployment:** Azure Container Apps and Azure PostgreSQL; Tuition API and agent are internal-only, MCP is public but needs an API key. The database region differs from the app region (see [Cloud deployment](#14-cloud-deployment)).
+- **Agent state:** conversations and pending payments are kept in memory (one agent replica); a pending payment expires after 5 minutes and can be used once.
+- **LLM:** the OpenAI model is configuration (`LLM_MODEL`); the cost figures above are for `gpt-4o-mini`, which OpenAI retires from the API on 2027-01-14.
+- **Policy document:** read-only reference, indexed once when the MCP server starts. It is not the tuition database. Retrieval is keyword-based (BM25), so queries should be in English.
 
 ## 17. Reproduce steps for the instructor
-_TBD_
+
+**Fastest check, no Docker and no key:** install the .NET 10 SDK and run `dotnet test`. All 305 tests pass.
+
+**Full local stack:**
+
+1. Install Docker (with compose), `bash`, `openssl`, `curl`.
+2. `./scripts/gen-keys.sh`, then `cp .env.example .env` and paste the two JWT lines it prints; set `POSTGRES_PASSWORD` and `MCP_API_KEY` (`openssl rand -hex 24`).
+3. Set `OPENAI_API_KEY` and `LLM_MODEL` for the real LLM, or `LLM_PROVIDER=Fake` for an offline walkthrough with keyword-based tool selection.
+4. `docker compose up --build`
+5. Open `http://localhost:8000/`, log in as `20230001` / `Student#2026` and run the example buttons:
+   - *When is the payment deadline for the fall term?* → MCP only
+   - *What is my balance?* → REST only (expected balance 3,000.00)
+   - *Can I pay my outstanding balance in installments?* → REST + MCP
+   - *Pay $100 of my 2026-FALL balance* → pending card → **Confirm** → balance 2,900.00
+   - *What is the balance of student 20230002?* → refused
+6. `./scripts/smoke-test.sh http://localhost:8000` prints a PASS/FAIL table (gateway 401 / 429, roles, payment, duplicate payment).
+7. MCP retrieval: run the demo client or MCP Inspector as described in [MCP server](#11-mcp-server).
+8. Swagger: `http://localhost:8000/swagger`; log in with `POST /api/v1/auth/token`, click **Authorize**, paste the token.
+
+**Deployed system:** open the gateway URL from [Deployed URLs](#6-deployed-urls-azure) and use the same credentials and steps. The Azure database is seeded like the local one, so the same numbers apply (note that a payment changes the balance of `20230001`, and the mobile endpoint allows only 3 calls per student per day).
 
 ## 18. Known limitations
-_TBD_
+
+- Agent sessions, pending payments and Kong's rate-limit counters are in memory: the agent and Kong run as a single replica, and a restart clears them. The API's database counter keeps the mobile limit enforced after a restart.
+- Payments are simulated and there is no refund or reversal operation.
+- Policy retrieval is keyword-based (BM25 with a small synonym list), not semantic, and expects English queries.
+- The gateway URL uses the platform's HTTPS certificate; the local stack uses plain HTTP.
+- The database and the apps are in different Azure regions, because of the subscription's region and SKU restrictions.
+- `gpt-4o-mini` is retired by OpenAI on 2027-01-14; change `LLM_MODEL` afterwards.
+- No load testing was done (not required by the assignment).
 
 ## 19. Evidence index
 
@@ -504,3 +706,4 @@ All evidence lives in [`documentation/evidence/`](documentation/evidence/). Scre
 | Swagger UI | [swagger-ui.png](documentation/evidence/swagger-ui.png) |
 | How the tests are run (`dotnet test`, 305 passing) | [tests-passing.png](documentation/evidence/tests-passing.png), [test-run.txt](documentation/evidence/test-run.txt) |
 | CI (GitHub Actions, build and test on every push) | [ci-runs.png](documentation/evidence/ci-runs.png) |
+| Azure deployment: URLs, resources, smoke test (23/23), chat UI | [azure-urls.txt](documentation/evidence/azure-urls.txt), [azure-resources.txt](documentation/evidence/azure-resources.txt), [smoke-test-azure.txt](documentation/evidence/smoke-test-azure.txt), [azure-chat-ui.png](documentation/evidence/azure-chat-ui.png), [combined scenario trace on Azure](documentation/evidence/agent-traces/azure-combined.json) |
