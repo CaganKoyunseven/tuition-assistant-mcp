@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using TuitionAssistant.Agent.Configuration;
 using TuitionAssistant.Agent.Llm;
@@ -26,6 +27,19 @@ public sealed class AgentOrchestrator(
 {
     private const int ToolOutputTraceLimit = 4096;
 
+    // A reply that says "I prepared your payment, press Confirm" is only true if prepare_payment ran in this turn.
+    private static readonly Regex ConfirmClaim = new(
+        @"(?=.*\bconfirm\b)(?=.*\b(prepared|prepare|hazırla\w*)\b)(?=.*\b(button|press|click|tap|düğme\w*|buton\w*|bas|tıkla\w*)\b)",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(200));
+
+    private const string ConfirmCorrection =
+        "[System] Your last reply told the student to press a Confirm button, but prepare_payment was NOT called in this turn, " +
+        "so no Confirm button exists. If the student asked to pay, call prepare_payment now with the term and amount. " +
+        "Otherwise answer again without mentioning a Confirm button.";
+
+    private const string ConfirmFallback =
+        "I could not prepare the payment, so there is nothing to confirm yet. Please send the request again with the term and amount, for example: \"Pay $100 of my 2026-FALL balance\".";
+
     public async Task<ChatResult> ChatAsync(string sessionId, string message, string? requestedModel, ToolContext context, CancellationToken cancellationToken)
     {
         var settings = llmOptions.Value;
@@ -46,6 +60,7 @@ public sealed class AgentOrchestrator(
         messages.Add(new LlmMessage("user", message));
 
         PendingPayment? pending = null;
+        var confirmGuardUsed = false;
         string answer;
         try
         {
@@ -62,6 +77,20 @@ public sealed class AgentOrchestrator(
 
                 if (response.ToolCalls.Count == 0)
                 {
+                    if (pending is null && ClaimsConfirmButton(response.Text))
+                    {
+                        // The model described a payment card that does not exist (it copied the wording of earlier turns).
+                        if (!confirmGuardUsed)
+                        {
+                            confirmGuardUsed = true;
+                            messages.Add(new LlmMessage("assistant", response.Text));
+                            messages.Add(new LlmMessage("system", ConfirmCorrection));
+                            continue;
+                        }
+
+                        response = response with { Text = ConfirmFallback };
+                    }
+
                     answer = response.Text ?? "";
                     trace.Outcome = "COMPLETED";
                     break;
@@ -103,6 +132,8 @@ public sealed class AgentOrchestrator(
         await traceWriter.WriteAsync(trace, CancellationToken.None);
         return new ChatResult(sessionId, answer, model, trace, pending?.ToSummary());
     }
+
+    private static bool ClaimsConfirmButton(string? text) => !string.IsNullOrEmpty(text) && ConfirmClaim.IsMatch(text);
 
     /// <summary>The default model, or a caller's choice if it is on the allow-list.</summary>
     public static string ResolveModel(LlmOptions settings, string? requested)
