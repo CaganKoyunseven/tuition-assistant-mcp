@@ -1,4 +1,4 @@
-Deployed: 2026-11-20T15:12Z  commit e0a2f57  region switzerlandnorth
+Deployed: 2026-11-22T16:53Z  commit 902425b  region switzerlandnorth
 Gateway (chat UI):  https://kong.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io/
 Swagger UI:         https://kong.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io/swagger
 MCP endpoint:       https://mcp-server.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io/mcp   (header X-Mcp-Api-Key)

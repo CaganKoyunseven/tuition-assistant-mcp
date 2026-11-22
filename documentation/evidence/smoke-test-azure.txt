@@ -1,4 +1,4 @@
-Smoke test against https://kong.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io (2026-11-20 15:12:02 UTC)
+Smoke test against https://kong.wittygrass-1a837cae.switzerlandnorth.azurecontainerapps.io (2026-11-22 16:53:06 UTC)
 
 RES  | CHECK                                                      | EXPECTED | ACTUAL
 -----+------------------------------------------------------------+----------+----------------
