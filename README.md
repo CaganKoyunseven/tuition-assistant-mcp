@@ -580,7 +580,7 @@ Tests run with the .NET 10 SDK only: no Docker, no cloud and no OpenAI key are r
 |---|---|---|
 | `TuitionAssistant.Api.Tests` | 152 | every REST operation with success and failure cases: token (valid / wrong password / bad grant), mobile query (term vs overall, invalid number, unknown student, 4th call → 429, counter reset on the next day), banking query (bank, own, other student 403, no token 401, admin 403), pay tuition (partial, full, duplicate 409, exceeds balance 422, invalid amount, already paid, other student 403), add tuition (created / unchanged / updated, below paid, bad currency, bad term, roles), batch CSV (counts, per-line errors, wrong header, header only, non-admin), unpaid report (paging, ordering, bounds, roles), ProblemDetails format, versioned routes, money helpers, concurrent payments |
 | `TuitionAssistant.Mcp.Tests` | 93 | chunker (exact section list), analyzer and Porter stemmer, BM25 (top-1 section of the retrieval queries, irrelevant query → 0 matches), input validation, index built once, tool output shape, MCP client ↔ server over HTTP (`tools/list`, `tools/call`, missing key → 401) |
-| `TuitionAssistant.Agent.Tests` | 60 | MCP-only, REST-only and combined tool flows, student number taken from the JWT only, `prepare_payment` never pays, confirm / cancel / expiry / wrong session, idempotent retry, loop guard, tool errors passed to the LLM, trace redaction, schema conversion, cost calculator |
+| `TuitionAssistant.Agent.Tests` | 63 | MCP-only, REST-only and combined tool flows, student number taken from the JWT only, `prepare_payment` never pays, confirm / cancel / expiry / wrong session, idempotent retry, loop guard, "press Confirm" claim without a prepared payment is corrected, tool errors passed to the LLM, trace redaction, schema conversion, cost calculator |
 
 **Why SQLite appears in the tests:** the API tests use SQLite in-memory as a test double so that `dotnet test` needs no Docker and no cloud. It is never used by the running system: local compose and Azure both use PostgreSQL.
 
@@ -658,7 +658,7 @@ A question costs a fraction of a cent; the whole demo is far below one cent per 
 
 ## 17. Reproduce steps for the instructor
 
-**Fastest check, no Docker and no key:** install the .NET 10 SDK and run `dotnet test`. All 305 tests pass.
+**Fastest check, no Docker and no key:** install the .NET 10 SDK and run `dotnet test`. All 308 tests pass.
 
 **Full local stack:**
 
@@ -690,20 +690,21 @@ A question costs a fraction of a cent; the whole demo is far below one cent per 
 
 ## 19. Evidence index
 
-All evidence lives in [`documentation/evidence/`](documentation/evidence/). Screenshots come from the local Docker Compose stack (chat UI through the Kong gateway); raw JSON traces are next to them.
+All evidence lives in [`documentation/evidence/`](documentation/evidence/). Screenshots of the agent scenarios, Swagger and the payment were taken on the **deployed Azure system** (browser address bar shows the Azure gateway URL); the raw JSON traces next to them come from runs of the same questions on the local Docker Compose stack.
 
 | Requirement | Evidence |
 |---|---|
-| Agent scenario 1, MCP only (policy question) | [screenshot](documentation/evidence/scenario-1-mcp-only.png), [trace](documentation/evidence/agent-traces/s1-mcp-only.json) |
-| Agent scenario 2, REST only (own balance) | [screenshot](documentation/evidence/scenario-2-rest-only.png), [trace](documentation/evidence/agent-traces/s2-rest-only.json) |
-| Agent scenario 3, combined REST + MCP | [screenshot](documentation/evidence/scenario-3-combined.png), [trace](documentation/evidence/agent-traces/s3-combined.json) |
-| Payment with explicit confirmation (prepare, then Confirm click) | [$100 payment](documentation/evidence/scenario-4-payment-confirmed.png), [$1,000 partial payment](documentation/evidence/scenario-4-payment-partial-1000.png), traces [prepare](documentation/evidence/agent-traces/payment-prepare.json) / [confirm](documentation/evidence/agent-traces/payment-confirm.json) |
-| Privacy: another student's balance is refused | [screenshot](documentation/evidence/scenario-5-privacy.png), [trace](documentation/evidence/agent-traces/s5-privacy.json) |
+| Agent scenario 1, MCP only (policy question) | [screenshot (Azure)](documentation/evidence/azure-chat-scenario-1-mcp.png), [trace](documentation/evidence/agent-traces/s1-mcp-only.json) |
+| Agent scenario 2, REST only (own balance) | [screenshot (Azure)](documentation/evidence/azure-chat-scenario-2-rest.png), [trace](documentation/evidence/agent-traces/s2-rest-only.json) |
+| Agent scenario 3, combined REST + MCP | [screenshot (Azure)](documentation/evidence/azure-chat-ui.png), [trace (Azure)](documentation/evidence/agent-traces/azure-combined.json), [trace (local)](documentation/evidence/agent-traces/s3-combined.json) |
+| Payment with explicit confirmation (prepare, then Confirm click, balance updated) | [screenshot (Azure)](documentation/evidence/azure-payment-confirmed.png), traces [prepare](documentation/evidence/agent-traces/payment-prepare.json) / [confirm](documentation/evidence/agent-traces/payment-confirm.json) |
+| Privacy: another student's balance is refused | [screenshot (Azure)](documentation/evidence/azure-privacy-refusal.png), [trace](documentation/evidence/agent-traces/s5-privacy.json) |
 | Below-threshold installment question | [trace](documentation/evidence/agent-traces/s6-below-threshold.json) |
 | MCP retrieval, 3 queries (McpDemo console) | [mcp-retrieval.txt](documentation/evidence/mcp-retrieval.txt) |
 | MCP Inspector: connect, tool list, tool call | [1 connected](documentation/evidence/mcp-inspector-1.png), [2 tool](documentation/evidence/mcp-inspector-2.png), [3 result](documentation/evidence/mcp-inspector-3.png) |
 | Gateway protection, rate limit, error cases, local smoke test | [smoke-test-local.txt](documentation/evidence/smoke-test-local.txt) |
-| Swagger UI | [swagger-ui.png](documentation/evidence/swagger-ui.png) |
-| How the tests are run (`dotnet test`, 305 passing) | [tests-passing.png](documentation/evidence/tests-passing.png), [test-run.txt](documentation/evidence/test-run.txt) |
+| Swagger UI (all operations) | [swagger-ui.png](documentation/evidence/swagger-ui.png) |
+| Protected gateway route on Azure: `401` without a token, `200` with a token | [401](documentation/evidence/azure-swagger-401.png), [200](documentation/evidence/azure-swagger-200.png) |
+| How the tests are run (`dotnet test`, 308 passing) | [tests-passing.png](documentation/evidence/tests-passing.png), [test-run.txt](documentation/evidence/test-run.txt) |
 | CI (GitHub Actions, build and test on every push) | [ci-runs.png](documentation/evidence/ci-runs.png) |
-| Azure deployment: URLs, resources, smoke test (23/23), chat UI | [azure-urls.txt](documentation/evidence/azure-urls.txt), [azure-resources.txt](documentation/evidence/azure-resources.txt), [smoke-test-azure.txt](documentation/evidence/smoke-test-azure.txt), [azure-chat-ui.png](documentation/evidence/azure-chat-ui.png), [combined scenario trace on Azure](documentation/evidence/agent-traces/azure-combined.json) |
+| Azure deployment: URLs, resources, smoke test (23/23, includes the mobile `429` rate limit), chat UI | [azure-urls.txt](documentation/evidence/azure-urls.txt), [azure-resources.txt](documentation/evidence/azure-resources.txt), [smoke-test-azure.txt](documentation/evidence/smoke-test-azure.txt), [azure-chat-ui.png](documentation/evidence/azure-chat-ui.png), [combined scenario trace on Azure](documentation/evidence/agent-traces/azure-combined.json) |
