@@ -1,16 +1,16 @@
   Geri yüklenecek projeler belirleniyor...
   Geri yükleme için tüm projeler güncel.
-  TuitionAssistant.Mcp -> /home/cagan/tuition-assistant-mcp/src/TuitionAssistant.Mcp/bin/Debug/net10.0/TuitionAssistant.Mcp.dll
-  TuitionAssistant.Api -> /home/cagan/tuition-assistant-mcp/src/TuitionAssistant.Api/bin/Debug/net10.0/TuitionAssistant.Api.dll
-  TuitionAssistant.Mcp.Tests -> /home/cagan/tuition-assistant-mcp/tests/TuitionAssistant.Mcp.Tests/bin/Debug/net10.0/TuitionAssistant.Mcp.Tests.dll
-/home/cagan/tuition-assistant-mcp/tests/TuitionAssistant.Mcp.Tests/bin/Debug/net10.0/TuitionAssistant.Mcp.Tests.dll (.NETCoreApp,Version=v10.0) için test çalıştırması
-  TuitionAssistant.Api.Tests -> /home/cagan/tuition-assistant-mcp/tests/TuitionAssistant.Api.Tests/bin/Debug/net10.0/TuitionAssistant.Api.Tests.dll
-  TuitionAssistant.Agent -> /home/cagan/tuition-assistant-mcp/src/TuitionAssistant.Agent/bin/Debug/net10.0/TuitionAssistant.Agent.dll
-/home/cagan/tuition-assistant-mcp/tests/TuitionAssistant.Api.Tests/bin/Debug/net10.0/TuitionAssistant.Api.Tests.dll (.NETCoreApp,Version=v10.0) için test çalıştırması
+  TuitionAssistant.Mcp -> <repo>/src/TuitionAssistant.Mcp/bin/Debug/net10.0/TuitionAssistant.Mcp.dll
+  TuitionAssistant.Api -> <repo>/src/TuitionAssistant.Api/bin/Debug/net10.0/TuitionAssistant.Api.dll
+  TuitionAssistant.Mcp.Tests -> <repo>/tests/TuitionAssistant.Mcp.Tests/bin/Debug/net10.0/TuitionAssistant.Mcp.Tests.dll
+<repo>/tests/TuitionAssistant.Mcp.Tests/bin/Debug/net10.0/TuitionAssistant.Mcp.Tests.dll (.NETCoreApp,Version=v10.0) için test çalıştırması
+  TuitionAssistant.Api.Tests -> <repo>/tests/TuitionAssistant.Api.Tests/bin/Debug/net10.0/TuitionAssistant.Api.Tests.dll
+  TuitionAssistant.Agent -> <repo>/src/TuitionAssistant.Agent/bin/Debug/net10.0/TuitionAssistant.Agent.dll
+<repo>/tests/TuitionAssistant.Api.Tests/bin/Debug/net10.0/TuitionAssistant.Api.Tests.dll (.NETCoreApp,Version=v10.0) için test çalıştırması
 Toplam 1 test dosyası belirtilen desenle eşleşti.
 Toplam 1 test dosyası belirtilen desenle eşleşti.
-  TuitionAssistant.Agent.Tests -> /home/cagan/tuition-assistant-mcp/tests/TuitionAssistant.Agent.Tests/bin/Debug/net10.0/TuitionAssistant.Agent.Tests.dll
-/home/cagan/tuition-assistant-mcp/tests/TuitionAssistant.Agent.Tests/bin/Debug/net10.0/TuitionAssistant.Agent.Tests.dll (.NETCoreApp,Version=v10.0) için test çalıştırması
+  TuitionAssistant.Agent.Tests -> <repo>/tests/TuitionAssistant.Agent.Tests/bin/Debug/net10.0/TuitionAssistant.Agent.Tests.dll
+<repo>/tests/TuitionAssistant.Agent.Tests/bin/Debug/net10.0/TuitionAssistant.Agent.Tests.dll (.NETCoreApp,Version=v10.0) için test çalıştırması
 Toplam 1 test dosyası belirtilen desenle eşleşti.
 
 Başarılı!  - Başarısız:     0, Başarılı:    93, Atlanan:     0, Toplam:    93, Süre: 2 s - TuitionAssistant.Mcp.Tests.dll (net10.0)
