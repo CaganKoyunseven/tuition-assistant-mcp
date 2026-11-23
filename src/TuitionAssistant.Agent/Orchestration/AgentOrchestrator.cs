@@ -28,9 +28,11 @@ public sealed class AgentOrchestrator(
     private const int ToolOutputTraceLimit = 4096;
 
     // A reply that says "I prepared your payment, press Confirm" is only true if prepare_payment ran in this turn.
+    // The \A anchor makes the three look-aheads run once from the start (linear time) instead of from every position
+    // (quadratic time). The timeout is only a safety net and is generous so that a cold start cannot trip it.
     private static readonly Regex ConfirmClaim = new(
-        @"(?=.*\bconfirm\b)(?=.*\b(prepared|prepare|hazırla\w*)\b)(?=.*\b(button|press|click|tap|düğme\w*|buton\w*|bas|tıkla\w*)\b)",
-        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(200));
+        @"\A(?=.*\bconfirm\b)(?=.*\b(prepared|prepare|hazırla\w*)\b)(?=.*\b(button|press|click|tap|düğme\w*|buton\w*|bas|tıkla\w*)\b)",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(5));
 
     private const string ConfirmCorrection =
         "[System] Your last reply told the student to press a Confirm button, but prepare_payment was NOT called in this turn, " +
@@ -133,7 +135,23 @@ public sealed class AgentOrchestrator(
         return new ChatResult(sessionId, answer, model, trace, pending?.ToSummary());
     }
 
-    private static bool ClaimsConfirmButton(string? text) => !string.IsNullOrEmpty(text) && ConfirmClaim.IsMatch(text);
+    private static bool ClaimsConfirmButton(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        try
+        {
+            return ConfirmClaim.IsMatch(text);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // The guard is a safety net: if it cannot decide in time, answer normally instead of failing the chat call.
+            return false;
+        }
+    }
 
     /// <summary>The default model, or a caller's choice if it is on the allow-list.</summary>
     public static string ResolveModel(LlmOptions settings, string? requested)

@@ -82,8 +82,17 @@ public sealed class AgentFactory : WebApplicationFactory<Program>
         return client;
     }
 
-    public static async Task<JsonNode> Json(HttpResponseMessage response) =>
-        JsonNode.Parse(await response.Content.ReadAsStringAsync())!;
+    public static async Task<JsonNode> Json(HttpResponseMessage response)
+    {
+        var text = await response.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            // A clear message instead of a JSON parser error, so a failing run shows the real HTTP status.
+            throw new InvalidOperationException($"Expected a JSON body but got HTTP {(int)response.StatusCode} with an empty body.");
+        }
+
+        return JsonNode.Parse(text)!;
+    }
 
     public static Task<HttpResponseMessage> Chat(HttpClient client, string sessionId, string message, string? model = null) =>
         client.PostAsJsonAsync("/api/v1/agent/chat", new { sessionId, message, model });

@@ -45,6 +45,21 @@ public class ConfirmButtonGuardTests
     }
 
     [Fact]
+    public async Task VeryLongAnswerWithoutAClaim_IsReturnedUnchanged_AndTheGuardNeverFailsTheRequest()
+    {
+        // The guard must scan in linear time: a slow scan used to hit the regex match timeout and turn the chat call into a 500.
+        var longAnswer = string.Join(' ', Enumerable.Repeat("The Fall deadline is September 30, 2026.", 1500));
+        using var factory = new AgentFactory();
+        factory.Llm.ThenAnswers(longAnswer);
+
+        var response = await Chat(factory, "When is the deadline?");
+        var body = await AgentFactory.Json(response);
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(longAnswer, body["answer"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task NormalPolicyAnswer_IsNotTouchedByTheGuard()
     {
         using var factory = new AgentFactory();
