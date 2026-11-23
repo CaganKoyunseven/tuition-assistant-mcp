@@ -6,19 +6,23 @@ A conversational assistant that answers student questions about tuition deadline
 
 ## 1. Demo video
 
-**Video:** _link will be added here_ (screen recording of the deployed Azure system; it has no audio and no subtitles, the steps below describe what is shown).
+**Video:** https://mega.nz/file/Pu4HgaDQ (about 6 minutes, English voice-over, screen recording of the system deployed on Azure).
+
+The file is end-to-end encrypted on MEGA and the link above does not contain the decryption key. The key is given to the instructor in the Moodle submission note; paste it when MEGA asks for it.
 
 | Time | What is shown |
 |---|---|
-| 0:00 | Architecture diagram |
-| 0:20 | Azure resource group and the gateway URL |
-| 0:40 | Swagger UI through the gateway: protected endpoint `401`, login, then `200` |
-| 1:20 | Mobile query rate limit: 3 × `200`, then `429`; a different student still gets `200` |
-| 1:50 | Chat UI: scenario 1 (MCP only), 2 (REST only), 3 (REST + MCP) with the tool-execution trace |
-| 3:20 | Payment: pending card, **Confirm**, success, balance updated |
-| 4:00 | Privacy: another student's balance is refused |
-| 4:15 | MCP retrieval (McpDemo / MCP Inspector) |
-| 4:45 | `dotnet test` and the CI badge |
+| 0:00 | Architecture diagram and the request flow |
+| 1:11 | Azure resource group: four container apps, environment, registry, PostgreSQL |
+| 1:48 | Swagger UI through the gateway: endpoint list, protected endpoint `401`, login, then `200` |
+| 2:54 | Mobile query rate limit: 3 × `200`, then `429`; a different student still gets `200` |
+| 3:19 | Chat UI scenario 1: MCP only, with the tool-execution trace |
+| 3:41 | Chat UI scenario 2: REST only |
+| 3:59 | Chat UI scenario 3: REST + MCP |
+| 4:20 | Payment: pending card, **Confirm**, success, balance 2,800.00 → 2,700.00 |
+| 4:56 | Privacy: another student's balance is refused |
+| 5:10 | MCP retrieval: the three retrieval queries in the README results table |
+| 5:37 | `dotnet test`: 309 tests pass |
 
 ## 2. Architecture
 
