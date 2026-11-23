@@ -1,20 +1,20 @@
   Geri yüklenecek projeler belirleniyor...
   Geri yükleme için tüm projeler güncel.
-  TuitionAssistant.Mcp -> <repo>/src/TuitionAssistant.Mcp/bin/Debug/net10.0/TuitionAssistant.Mcp.dll
   TuitionAssistant.Api -> <repo>/src/TuitionAssistant.Api/bin/Debug/net10.0/TuitionAssistant.Api.dll
-  TuitionAssistant.Mcp.Tests -> <repo>/tests/TuitionAssistant.Mcp.Tests/bin/Debug/net10.0/TuitionAssistant.Mcp.Tests.dll
-<repo>/tests/TuitionAssistant.Mcp.Tests/bin/Debug/net10.0/TuitionAssistant.Mcp.Tests.dll (.NETCoreApp,Version=v10.0) için test çalıştırması
-  TuitionAssistant.Api.Tests -> <repo>/tests/TuitionAssistant.Api.Tests/bin/Debug/net10.0/TuitionAssistant.Api.Tests.dll
   TuitionAssistant.Agent -> <repo>/src/TuitionAssistant.Agent/bin/Debug/net10.0/TuitionAssistant.Agent.dll
+  TuitionAssistant.Api.Tests -> <repo>/tests/TuitionAssistant.Api.Tests/bin/Debug/net10.0/TuitionAssistant.Api.Tests.dll
+  TuitionAssistant.Mcp -> <repo>/src/TuitionAssistant.Mcp/bin/Debug/net10.0/TuitionAssistant.Mcp.dll
 <repo>/tests/TuitionAssistant.Api.Tests/bin/Debug/net10.0/TuitionAssistant.Api.Tests.dll (.NETCoreApp,Version=v10.0) için test çalıştırması
-Toplam 1 test dosyası belirtilen desenle eşleşti.
 Toplam 1 test dosyası belirtilen desenle eşleşti.
   TuitionAssistant.Agent.Tests -> <repo>/tests/TuitionAssistant.Agent.Tests/bin/Debug/net10.0/TuitionAssistant.Agent.Tests.dll
 <repo>/tests/TuitionAssistant.Agent.Tests/bin/Debug/net10.0/TuitionAssistant.Agent.Tests.dll (.NETCoreApp,Version=v10.0) için test çalıştırması
+  TuitionAssistant.Mcp.Tests -> <repo>/tests/TuitionAssistant.Mcp.Tests/bin/Debug/net10.0/TuitionAssistant.Mcp.Tests.dll
+<repo>/tests/TuitionAssistant.Mcp.Tests/bin/Debug/net10.0/TuitionAssistant.Mcp.Tests.dll (.NETCoreApp,Version=v10.0) için test çalıştırması
+Toplam 1 test dosyası belirtilen desenle eşleşti.
 Toplam 1 test dosyası belirtilen desenle eşleşti.
 
-Başarılı!  - Başarısız:     0, Başarılı:    93, Atlanan:     0, Toplam:    93, Süre: 2 s - TuitionAssistant.Mcp.Tests.dll (net10.0)
+Başarılı!  - Başarısız:     0, Başarılı:    93, Atlanan:     0, Toplam:    93, Süre: 1 s - TuitionAssistant.Mcp.Tests.dll (net10.0)
 
-Başarılı!  - Başarısız:     0, Başarılı:    63, Atlanan:     0, Toplam:    63, Süre: 2 s - TuitionAssistant.Agent.Tests.dll (net10.0)
+Başarılı!  - Başarısız:     0, Başarılı:    64, Atlanan:     0, Toplam:    64, Süre: 3 s - TuitionAssistant.Agent.Tests.dll (net10.0)
 
-Başarılı!  - Başarısız:     0, Başarılı:   152, Atlanan:     0, Toplam:   152, Süre: 3 s - TuitionAssistant.Api.Tests.dll (net10.0)
+Başarılı!  - Başarısız:     0, Başarılı:   152, Atlanan:     0, Toplam:   152, Süre: 5 s - TuitionAssistant.Api.Tests.dll (net10.0)
