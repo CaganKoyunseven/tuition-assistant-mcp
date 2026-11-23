@@ -122,6 +122,8 @@ Only Kong (8000) and the MCP server (8081) publish host ports. The Tuition API, 
 
 Log in to the chat UI or Swagger with the demo credentials from [Test data](#test-data-seed) (`20230001` / `Student#2026`). The MCP endpoint answers `401` without the API key; the key is a deployment secret and is not published. The deployed agent uses it internally, so MCP can be tested through the chat UI, and directly with MCP Inspector or the demo client on the local stack (see [MCP server](#11-mcp-server)). The Tuition API and the agent are not reachable from the internet; every REST call has to pass Kong. Deployment details: [Cloud deployment](#14-cloud-deployment).
 
+The deployment is kept running until grading is finished. After that it may be removed to stop the Azure cost (see [Cost control and teardown](#cost-control-and-teardown)); the demo video and the evidence in [Evidence index](#19-evidence-index) show the running system.
+
 ## 7. API Gateway
 
 **Kong Gateway 3.9 (OSS)** runs in DB-less mode: the whole configuration is one declarative file, [`gateway/kong/kong.yml.template`](gateway/kong/kong.yml.template). At container start [`render-and-start.sh`](gateway/kong/render-and-start.sh) fills in the upstream URLs and the JWT public key from environment variables, validates the result with `kong config parse` and starts Kong. The same image therefore runs locally and in Azure.
@@ -568,7 +570,7 @@ Bring your own key and model: both are plain configuration in `.env`, nothing is
 | `LLM_MODEL` | default model, `gpt-4o-mini` out of the box |
 | `LLM_ALLOWED_MODELS` | optional comma-separated extra models a request may choose (`"model": "..."` in the chat body, listed by `GET /api/v1/agent/models`); any other value returns `400 MODEL_NOT_ALLOWED` |
 | `LLM_BASE_URL` | only for another OpenAI-compatible provider |
-| `LLM_PROVIDER` | `OpenAI` (real, graded mode) or `Fake` (offline keyword-based stand-in for demos without a key) |
+| `LLM_PROVIDER` | `OpenAI` (real LLM function calling: this is the graded mode and the only mode used on Azure and in the demo video) or `Fake` (an offline stand-in for walkthroughs without a key; it picks tools by keywords and is not the LLM tool-calling implementation) |
 
 > `gpt-4o-mini` is cheap, but OpenAI removes it from the API on **2027-01-14**. After that date set `LLM_MODEL` to a current model (for example `gpt-5-mini`) and restart the agent; no code change is needed. Price estimates in traces use `Llm__InputPricePerMillion` / `Llm__OutputPricePerMillion`.
 
@@ -668,7 +670,7 @@ A question costs a fraction of a cent; the whole demo is far below one cent per 
 
 1. Install Docker (with compose), `bash`, `openssl`, `curl`.
 2. `./scripts/gen-keys.sh`, then `cp .env.example .env` and paste the two JWT lines it prints; set `POSTGRES_PASSWORD` and `MCP_API_KEY` (`openssl rand -hex 24`).
-3. Set `OPENAI_API_KEY` and `LLM_MODEL` for the real LLM, or `LLM_PROVIDER=Fake` for an offline walkthrough with keyword-based tool selection.
+3. Set `OPENAI_API_KEY` and `LLM_MODEL` for the real LLM, or `LLM_PROVIDER=Fake` for an offline walkthrough with keyword-based tool selection (not the graded mode; the real function-calling loop needs the OpenAI provider).
 4. `docker compose up --build`
 5. Open `http://localhost:8000/`, log in as `20230001` / `Student#2026` and run the example buttons:
    - *When is the payment deadline for the fall term?* → MCP only
@@ -680,7 +682,7 @@ A question costs a fraction of a cent; the whole demo is far below one cent per 
 7. MCP retrieval: run the demo client or MCP Inspector as described in [MCP server](#11-mcp-server).
 8. Swagger: `http://localhost:8000/swagger`; log in with `POST /api/v1/auth/token`, click **Authorize**, paste the token.
 
-**Deployed system:** open the gateway URL from [Deployed URLs](#6-deployed-urls-azure) and use the same credentials and steps. The Azure database is seeded like the local one, so the same numbers apply (note that a payment changes the balance of `20230001`, and the mobile endpoint allows only 3 calls per student per day).
+**Deployed system:** open the gateway URL from [Deployed URLs](#6-deployed-urls-azure) and use the same credentials and steps. The Azure database was seeded like the local one, but demo payments have already been recorded there: `20230001` started at a balance of 3,000.00 and now shows a lower balance (2,700.00 after the payments made for the demo and its tests), and every further payment lowers it again. The mobile endpoint allows only 3 calls per student per day (UTC), so use a student number that has not been used today.
 
 ## 18. Known limitations
 
